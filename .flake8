@@ -1,6 +1,7 @@
 [flake8]
 max-line-length = 130
 max-complexity = 18
+max-arguments = 8
 count = True
 exclude = .git, dist, .cache, __pycache__
 docstring-convention = google
@@ -37,8 +38,10 @@ ignore = W503, # Allow line break before binary operator
          WPS431, # Allow nested classes
          WPS437, # Allow usage of protected attribute : _state
          WPS604, # Allow usage of `pass` or `global var` inside classes
+         WPS607, # Allow variables inside __slots__
 
-per-file-ignores = test/**.py: WPS442, WPS226, WPS219, S101, D100, WPS211, WPS609, WPS118
+per-file-ignores = test/**.py: WPS442, WPS226, WPS219, S101, D100, WPS204, WPS211, WPS609, WPS118, WPS432, WPS440, WPS441
+                   src/outcome/peewee_validates/peewee_validates.py: WPS402
 # WPS442, # pytest fixtures require shadowing
 # WPS211, # Too many arguments
 # WPS226, # Allow several usage of string constants (> 3)

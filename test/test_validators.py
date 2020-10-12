@@ -1,18 +1,19 @@
 import pytest
-
-from outcome.peewee_validates.peewee_validates import ValidationError
-from outcome.peewee_validates.peewee_validates import StringField
-from outcome.peewee_validates.peewee_validates import validate_email
-from outcome.peewee_validates.peewee_validates import validate_equal
-from outcome.peewee_validates.peewee_validates import validate_function
-from outcome.peewee_validates.peewee_validates import validate_length
-from outcome.peewee_validates.peewee_validates import validate_matches
-from outcome.peewee_validates.peewee_validates import validate_none_of
-from outcome.peewee_validates.peewee_validates import validate_not_empty
-from outcome.peewee_validates.peewee_validates import validate_one_of
-from outcome.peewee_validates.peewee_validates import validate_range
-from outcome.peewee_validates.peewee_validates import validate_regexp
-from outcome.peewee_validates.peewee_validates import validate_required
+from outcome.peewee_validates.peewee_validates import (  # noqa: WPS235
+    StringField,
+    ValidationError,
+    validate_email,
+    validate_equal,
+    validate_function,
+    validate_length,
+    validate_matches,
+    validate_none_of,
+    validate_not_empty,
+    validate_one_of,
+    validate_range,
+    validate_regexp,
+    validate_required,
+)
 
 field = StringField()
 
