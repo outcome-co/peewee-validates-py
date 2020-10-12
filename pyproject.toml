@@ -11,14 +11,11 @@ repository = "https://github.com/outcome-co/peewee-validates-py"
 documentation = "https://github.com/outcome-co/peewee-validates-py#README"
 readme = "README.md"
 
-[pypi]
-name = "otc"
-url = "https://pypi.pkg.outcome.co/simple/"
-
 [tool.poetry.dependencies]
 python = "^3.8"
 
 [tool.poetry.dev-dependencies]
+outcome-devkit = "^3.0.12"
 
 
 [tool.coverage.run]
@@ -60,6 +57,17 @@ exclude = '''
 
 [tool.isort]
 skip_glob = "*/.cache/**/*"
+
+[tool.commitizen]
+name = "cz_conventional_commits"
+version = "0.1.0"
+tag_format = "v$version"
+bump_message = "chore(version): $current_version → $new_version"
+version_files = ["README.md:version-badge", "pyproject.toml:version"]
+
+[pypi]
+name = "otc"
+url = "https://pypi.pkg.outcome.co/simple/"
 
 [build-system]
 requires = ["poetry>=0.12"]
