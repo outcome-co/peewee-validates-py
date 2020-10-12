@@ -13,6 +13,8 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.8"
+peewee = "^3.13.3"
+python-dateutil ="^2.5.0"
 
 [tool.poetry.dev-dependencies]
 outcome-devkit = "^3.0.12"
@@ -21,11 +23,12 @@ outcome-devkit = "^3.0.12"
 [tool.coverage.run]
 branch = true
 data_file = 'coverage/data'
-source = ['src/outcome/peewee-validates']
+source = ['src/outcome/peewee_validates']
 omit = [
    "test/*"
 ]
 parallel = true
+plugins = ["outcome.devkit.env_coverage"]
 
 [tool.coverage.report]
 fail_under = 100
