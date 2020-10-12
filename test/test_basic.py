@@ -76,7 +76,7 @@ def test_coerce_fails():
 
     validator = TestValidator()
     data = {'int_field': 'a', 'float_field': 'a', 'decimal_field': 'a', 'boolean_field': 'false'}
-    assert validator.validate(data)
+    assert not validator.validate(data)
     assert validator.errors['decimal_field'] == DEFAULT_MESSAGES['coerce_decimal']
     assert validator.errors['float_field'] == DEFAULT_MESSAGES['coerce_float']
     assert validator.errors['int_field'] == DEFAULT_MESSAGES['coerce_int']
