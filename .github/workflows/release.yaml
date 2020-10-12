@@ -1,0 +1,53 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+env:
+  POETRY_CACHE_DIR: ".cache/poetry"
+  PIP_CACHE_DIR: ".cache/pip"
+
+jobs:
+    publish:
+      name: "Publish package"
+      runs-on: ubuntu-latest
+      if: github.event.base_ref == 'refs/heads/master'
+
+      steps:
+        - name: Checkout code
+          uses: actions/checkout@v2
+
+        - name: "Get python version"
+          uses: outcome-co/action-read-toml@v1.9.1
+          id: python_version
+          with:
+            path: pyproject.toml
+            key: tool.poetry.dependencies.python
+
+        - name: "Set up python ${{ steps.python_version.outputs.tool_poetry_dependencies_python }}"
+          uses: actions/setup-python@v2.1.2
+          with:
+            python-version: ${{ steps.python_version.outputs.tool_poetry_dependencies_python }}
+
+        - name: Configure pip cache
+          uses: actions/cache@v1
+          with:
+            path: ${{ env.PIP_CACHE_DIR }}
+            key: pip-${{ hashFiles('**/poetry.lock') }}
+
+        - name: Configure poetry cache
+          uses: actions/cache@v1
+          with:
+            path: ${{ env.POETRY_CACHE_DIR }}
+            key: poetry-${{ hashFiles('**/poetry.lock') }}
+
+        - name: "Install build system"
+          run: make install-build-system
+
+        - name: "Publish package"
+          run: make publish
+          env:
+            POETRY_USERNAME: ${{ secrets.OTC_PYPI_REGISTRY_USERNAME }}
+            POETRY_PASSWORD: ${{ secrets.OTC_PYPI_REGISTRY_TOKEN }}

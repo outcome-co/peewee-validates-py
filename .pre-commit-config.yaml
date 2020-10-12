@@ -1,0 +1,54 @@
+repos:
+  - repo: https://github.com/alessandrojcm/commitlint-pre-commit-hook
+    rev: v2.2.2
+    hooks:
+    - id: commitlint
+      stages: [commit-msg]
+      additional_dependencies: ['@commitlint/config-conventional']
+  
+  # Stop commits to master
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v3.1.0  # Use the ref you want to point at
+    hooks:
+    - id: no-commit-to-branch
+      stages: [commit, push]
+      args: [--branch, master]  
+    - id: check-merge-conflict
+      stages: [commit, push]
+  
+  - repo: https://github.com/outcome-co/action-check-todos
+    rev: v1.5.0
+    hooks:
+    - id: check-todos
+      args: ['--ignore','coverage','**/*']
+      stages: [push]
+  
+  - repo: local
+    hooks:
+  
+    - id: autoupdate
+      name: autoupdate
+      language: system
+      stages: [push]
+      verbose: true
+      entry: pre-commit autoupdate
+      pass_filenames: false
+  
+    - id: checks
+      name: checks
+      language: system  # Running on the local system
+      stages: [push]
+      verbose: true
+      entry: make check
+      types: [file, python]  # Only triggered if python files are changed in the commit
+      pass_filenames: false
+  
+    - id: test
+      name: test
+      language: system  # Running on the local system
+      stages: [push]
+      verbose: true
+      entry: make test-unit
+      types: [file, python]  # Only triggered if python files are changed in the commit
+      pass_filenames: false
+  
