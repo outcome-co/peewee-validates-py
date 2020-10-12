@@ -1,7 +1,16 @@
-ifndef MK_CI_PY
-MK_CI_PY=1
+ifndef MK_CI
+MK_CI=1
 
-include make/env.Makefile
+# Determine whether we're in a CI environment such as Github Actions
+# Github Actions defines a GITHUB_ACTIONS=true variable
+#
+# Generic tools can set CI=true 
+ifneq "$(or $(GITHUB_ACTIONS), $(CI))" ""
+$(info Running in CI mode)
+INSIDE_CI=1
+else
+NOT_INSIDE_CI=1
+endif
 
 # CI WORKFLOW
 
@@ -23,6 +32,7 @@ ifdef NOT_INSIDE_CI
 # Not inside a CI process
 lint-black: ## Run black
 	poetry run black .
+
 lint-isort: ## Run isort 
 	poetry run isort -rc .
 endif
@@ -79,7 +89,7 @@ test: clean test-unit test-integration coverage ## Run all tests
 # i.e. SKIP_COVERAGE=1 when the `test` target has been called, or SKIP_COVERAGE=0 otherwise
 define run-pytest
 	@SKIP_COVERAGE=$(ALL_TESTS) $(MAKE) clean-coverage
-	poetry run coverage run --context=$(COVERAGE_CONTEXT) -m pytest --ff -vvv --maxfail=1 ./test
+	poetry run coverage run --context=$(COVERAGE_CONTEXT) -m pytest ./test
 	poetry run coverage combine --append
 	@SKIP_COVERAGE=$(ALL_TESTS) $(MAKE) coverage
 endef
@@ -131,23 +141,15 @@ test-integration: ## Run integration tests
 
 .PHONY: clean clean-docs clean-coverage
 
-clean: clean-docs clean-coverage clean-python clean-cache ## Remove generated data
+clean: clean-docs clean-coverage clean-python ## Remove generated data
 
 clean-docs: ## Remove docs
 	rm -rf docs
 
-ifdef INSIDE_CI
-clean-cache: ## Remove cache directory
-	@# no-op
-else
-clean-cache:
-	rm -rf .cache
-endif
-
 clean-python: ## Remove python artifacts
 	find . -name "*.pyc" -delete
 	find . -name "__pycache__" -delete
-	rm -rf ".pytest_cache"
+	rm -rf dist
 
 ifeq ($(SKIP_COVERAGE), 1)
 clean-coverage:
