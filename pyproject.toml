@@ -17,7 +17,7 @@ peewee = "^3.13.3"
 python-dateutil ="^2.5.0"
 
 [tool.poetry.dev-dependencies]
-outcome-devkit = "^3.0.12"
+outcome-devkit = "^3.2.1"
 
 
 [tool.coverage.run]
