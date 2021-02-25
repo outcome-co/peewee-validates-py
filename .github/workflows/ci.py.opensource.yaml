@@ -132,7 +132,7 @@ jobs:
         # This creates a new commit and tag if we're bumping
         - name: Bump version
           id: bump_version
-          uses: outcome-co/action-update-version@v2.0.0
+          uses: outcome-co/action-update-version@v2.0.1
 
         - name: Set up python 3.8.6
           if: steps.bump_version.outputs.updated == 'true'
