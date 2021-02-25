@@ -1,7 +1,7 @@
 # peewee-validates-py
-![ci-badge](https://github.com/outcome-co/peewee-validates-py/workflows/Checks/badge.svg?branch=v1.0.0) ![version-badge](https://img.shields.io/badge/version-1.0.0-brightgreen)
+![Continuous Integration](https://github.com/outcome-co/peewee-validates-py/actions/workflows/ci.py.opensource.yaml/badge.svg) ![version-badge](https://img.shields.io/badge/version-1.0.0-brightgreen)
 
-Description TBD
+Validation library for peewee.
 
 ## Usage
 
