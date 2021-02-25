@@ -11,4 +11,4 @@ poetry add outcome-peewee-validates
 
 ## Development
 
-Remember to run `./pre-commit.sh` when you clone the repository.
+Remember to run `./bootstrap.sh` when you clone the repository.
