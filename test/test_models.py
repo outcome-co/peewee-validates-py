@@ -1,7 +1,14 @@
 from test.models import BasicFields, ComplexPerson, Course, Organization, Person, Student
+from typing import Dict, cast
 
 import pytest
-from outcome.peewee_validates.peewee_validates import DEFAULT_MESSAGES, ManyModelChoiceField, ModelValidator, ValidationError
+from outcome.peewee_validates.peewee_validates import (
+    DEFAULT_MESSAGES,
+    ManyModelChoiceField,
+    ModelValidator,
+    QueryLike,
+    ValidationError,
+)
 
 student_tim = Student(name='tim')
 
@@ -26,9 +33,11 @@ def test_required():
 
 def test_clean():
     class TestValidator(ModelValidator):
-        def clean(self, data):
+        def clean(self, data: Dict[str, object]):
             super().clean(data)
-            data['name'] += 'awesome'  # noqa: WPS336
+            v = data['name']
+            assert isinstance(v, str)
+            data['name'] = v + 'awesome'  # noqa: WPS336
             return data
 
     validator = TestValidator(Person())
@@ -38,7 +47,7 @@ def test_clean():
 
 def test_clean_error():
     class TestValidator(ModelValidator):
-        def clean(self, data):
+        def clean(self, data: Dict[str, object]) -> Dict[str, object]:
             raise ValidationError('required')
 
     validator = TestValidator(Person())
@@ -90,19 +99,19 @@ def test_related_optional_missing():
 
 
 def test_related_required_int():
-    org = Organization.create(name='new1')
+    org = cast(Organization, Organization.create(name='new1'))
     validator = ModelValidator(ComplexPerson(name='tim', gender='M'))
     assert validator.validate({'organization': org.id})
 
 
 def test_related_required_instance():
-    org = Organization.create(name='new1')
+    org = cast(Organization, Organization.create(name='new1'))
     validator = ModelValidator(ComplexPerson(name='tim', gender='M'))
     assert validator.validate({'organization': org})
 
 
 def test_related_required_dict():
-    org = Organization.create(name='new1')
+    org = cast(Organization, Organization.create(name='new1'))
     validator = ModelValidator(ComplexPerson(name='tim', gender='M'))
     assert validator.validate({'organization': {'id': org.id}})
 
@@ -179,8 +188,8 @@ def test_m2m_missing():
 def test_m2m_ints():
     validator = ModelValidator(student_tim)
 
-    c1 = Course.create(name='course1')
-    c2 = Course.create(name='course2')
+    c1 = cast(Course, Course.create(name='course1'))
+    c2 = cast(Course, Course.create(name='course2'))
 
     assert validator.validate({'courses': [c1.id, c2.id]})
 
@@ -203,8 +212,8 @@ def test_m2m_instances():
 def test_m2m_dicts():
     validator = ModelValidator(student_tim)
 
-    c1 = Course.create(name='course1')
-    c2 = Course.create(name='course2')
+    c1 = cast(Course, Course.create(name='course1'))
+    c2 = cast(Course, Course.create(name='course2'))
 
     assert validator.validate({'courses': [{'id': c1.id}, {'id': c2.id}]})
 
@@ -223,8 +232,8 @@ def test_m2m_save():
     obj = student_tim
     validator = ModelValidator(obj)
 
-    c1 = Course.create(name='course1')
-    c2 = Course.create(name='course2')
+    c1 = cast(Course, Course.create(name='course1'))
+    c2 = cast(Course, Course.create(name='course2'))
 
     assert validator.validate({'courses': [c1, c2]})
 
@@ -248,12 +257,12 @@ def test_m2m_save_blank():
 
 def test_overrides():
     class CustomValidator(ModelValidator):
-        students = ManyModelChoiceField(Student.select(), Student.name)
+        students = ManyModelChoiceField(cast(QueryLike, Student.select()), Student.name)
 
     Student.create(name='tim')
     Student.create(name='bob')
 
-    obj = Course.create(name='course1')
+    obj = cast(Course, Course.create(name='course1'))
 
     validator = CustomValidator(obj)
 

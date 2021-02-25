@@ -1,11 +1,11 @@
+from __future__ import annotations
+
+from typing import Any, Sequence, cast
+
 import peewee
 
-try:
-    M2M_RELATED = 'related_name'
-    from playhouse.fields import ManyToManyField  # noqa: WPS433
-except ImportError:
-    M2M_RELATED = 'backref'
-    from peewee import ManyToManyField  # noqa: WPS433, WPS440
+M2M_RELATED = 'backref'
+
 
 database = peewee.SqliteDatabase(':memory:')
 
@@ -15,6 +15,7 @@ def getname():
 
 
 class BasicFields(peewee.Model):
+    id: int  # noqa: A003
     field1 = peewee.CharField(default=getname)
     field2 = peewee.CharField()
     field3 = peewee.CharField()
@@ -28,6 +29,7 @@ class BasicFields(peewee.Model):
 
 
 class Organization(peewee.Model):
+    id: int  # noqa: A003
     name = peewee.CharField(null=False)
 
     class Meta:
@@ -55,7 +57,7 @@ class ComplexPerson(Person):
     organization = peewee.ForeignKeyField(Organization, null=False)
     pay_grade = peewee.ForeignKeyField(PayGrade, null=True)
 
-    class Meta:
+    class Meta:  # type: ignore
         database = database  # noqa: WPS434
         indexes = (
             (('gender', 'name'), True),
@@ -64,17 +66,20 @@ class ComplexPerson(Person):
 
 
 class Student(peewee.Model):
+    id: int  # noqa: A003
     name = peewee.CharField(max_length=10)
+    courses: Sequence[Course]
 
     class Meta:
         database = database  # noqa: WPS434
 
 
 class Course(peewee.Model):
+    id: int  # noqa: A003
     name = peewee.CharField(max_length=10)
 
     params = {M2M_RELATED: 'courses'}
-    students = ManyToManyField(Student, **params)
+    students: Sequence[Student] = cast(Any, peewee.ManyToManyField(Student, **params))
 
     class Meta:
         database = database  # noqa: WPS434
@@ -88,7 +93,7 @@ BasicFields.create_table(safe=True)
 
 Student.create_table(safe=True)
 Course.create_table(safe=True)
-Course.students.get_through_model().create_table(safe=True)
+Course.students.get_through_model().create_table(safe=True)  # type: ignore
 
 organization = Organization(name='main')
 organization.save()

@@ -14,4 +14,4 @@ updates:
   commit-message:
     prefix: 'fix(deps): '
     prefix-development: 'chore(deps): '
-  open-pull-requests-limit: 10
+  open-pull-requests-limit: 1

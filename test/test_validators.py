@@ -1,3 +1,5 @@
+import datetime
+
 import pytest
 from outcome.peewee_validates.peewee_validates import (  # noqa: WPS235
     StringField,
@@ -9,10 +11,11 @@ from outcome.peewee_validates.peewee_validates import (  # noqa: WPS235
     validate_matches,
     validate_none_of,
     validate_not_empty,
+    validate_numeric_range,
     validate_one_of,
-    validate_range,
     validate_regexp,
     validate_required,
+    validate_temporal_range,
 )
 
 field = StringField()
@@ -116,8 +119,8 @@ def test_validate_none_of():
         validator(field, {})
 
 
-def test_validate_range():
-    validator = validate_range(low=10, high=100)
+def test_validate_numeric_range():
+    validator = validate_numeric_range(low=10, high=100)
 
     for value in (8, 800):
         field.value = value
@@ -125,6 +128,21 @@ def test_validate_range():
             validator(field, {})
 
     for value in (None, 10, 100):
+        field.value = value
+        validator(field, {})
+
+
+def test_validate_temporal_range():
+    validator = validate_temporal_range(
+        low=datetime.datetime.today() - datetime.timedelta(1), high=datetime.datetime.today() + datetime.timedelta(2),
+    )
+
+    for value in (datetime.datetime.today() - datetime.timedelta(10), datetime.datetime.today() + datetime.timedelta(10)):
+        field.value = value
+        with pytest.raises(ValidationError):
+            validator(field, {})
+
+    for value in (None, datetime.datetime.today()):
         field.value = value
         validator(field, {})
 
@@ -169,7 +187,7 @@ def test_validate_regexp():
 
 
 def test_validate_function():
-    def verify(value, check):
+    def verify(value: object, check: object):
         return value == check
 
     validator = validate_function(verify, check='tim')

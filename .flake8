@@ -39,6 +39,10 @@ ignore = W503, # Allow line break before binary operator
          WPS437, # Allow usage of protected attribute : _state
          WPS604, # Allow usage of `pass` or `global var` inside classes
          WPS607, # Allow variables inside __slots__
+         WPS226, # string constants
+         WPS235, # too many modules
+         WPS402, # noqa overuse
+         WPS403, # noqa overuse
 
 per-file-ignores = test/**.py: WPS442, WPS226, WPS219, S101, D100, WPS204, WPS211, WPS609, WPS118, WPS432, WPS440, WPS441
                    src/outcome/peewee_validates/peewee_validates.py: WPS402

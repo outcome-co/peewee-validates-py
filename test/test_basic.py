@@ -1,4 +1,5 @@
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timedelta
+from typing import Dict
 
 from outcome.peewee_validates.peewee_validates import (  # noqa: WPS235
     DEFAULT_MESSAGES,
@@ -42,9 +43,9 @@ def test_required():  # noqa: WPS218
         float_field = FloatField(required=True, low=10.0, high=50.0)
         int_field = IntegerField(required=True)
         str_field = StringField(required=True)
-        date_field = DateField(required=True, low='jan 1, 2010', high='dec 1, 2010')
-        time_field = TimeField(required=True, low='9 am', high='10 am')
-        datetime_field = DateTimeField(required=True, low='jan 1, 2010', high='dec 1, 2010')
+        date_field = DateField(required=True, low=date.today() - timedelta(1), high=date.today() + timedelta(1))
+        time_field = TimeField(required=True, low=time(), high=time())
+        datetime_field = DateTimeField(required=True, low=datetime.now() - timedelta(1), high=datetime.now() + timedelta(1))
 
     validator = TestValidator()
     assert not validator.validate()
@@ -341,15 +342,13 @@ def test_email():
 
 
 def test_function():
-    def alwaystim(value):
-        if value == 'tim':
-            return True
-        return False
+    def alwaystim(value: object):
+        return value == 'tim'
 
     class TestValidator(Validator):
         first_name = StringField(validators=[validate_function(alwaystim)])
 
-        class Meta:
+        class Meta(Validator.Meta):
             messages = {'function': 'your name must be tim'}
 
     validator = TestValidator()
@@ -357,7 +356,7 @@ def test_function():
 
     validator = TestValidator()
     assert not validator.validate({'first_name': 'asdf'})
-    assert validator.errors['first_name'] == validator._meta.messages['function']
+    assert validator.errors['first_name'] == validator._meta.messages['function']  # type: ignore
 
 
 def test_only_exclude():
@@ -375,7 +374,7 @@ def test_clean_field():
     class TestValidator(Validator):
         field1 = StringField(required=True)
 
-        def clean_field1(self, value):
+        def clean_field1(self, value: object):
             return f'{value}-awesome'
 
     validator = TestValidator()
@@ -387,7 +386,7 @@ def test_clean_field_error():
     class TestValidator(Validator):
         field1 = StringField(required=True)
 
-        def clean_field1(self, value):
+        def clean_field1(self, value: object):
             raise ValidationError('required')
 
     validator = TestValidator()
@@ -400,8 +399,10 @@ def test_clean():
     class TestValidator(Validator):
         field1 = StringField(required=True)
 
-        def clean(self, data):
-            data['field1'] += 'awesome'  # noqa: WPS336
+        def clean(self, data: Dict[str, object]):
+            v = data['field1']
+            assert isinstance(v, str)
+            data['field1'] = v + 'awesome'  # noqa: WPS336
             return data
 
     validator = TestValidator()
@@ -413,7 +414,7 @@ def test_clean_error():
     class TestValidator(Validator):
         field1 = StringField(required=True)
 
-        def clean(self, data):
+        def clean(self, data: Dict[str, object]) -> Dict[str, object]:
             raise ValidationError('required')
 
     validator = TestValidator()
@@ -428,7 +429,7 @@ def test_custom_messages():
         field2 = StringField(required=True)
         field3 = IntegerField(required=True)
 
-        class Meta:
+        class Meta(Validator.Meta):
             messages = {
                 'required': 'enter value',
                 'field2.required': 'field2 required',

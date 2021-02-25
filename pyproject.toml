@@ -12,12 +12,12 @@ documentation = "https://github.com/outcome-co/peewee-validates-py#README"
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.8"
+python = "^3.8.6"
 peewee = "^3.13.3"
 python-dateutil ="^2.5.0"
 
 [tool.poetry.dev-dependencies]
-outcome-devkit = "^3.0.12"
+outcome-devkit = "^6.0.2"
 
 
 [tool.coverage.run]
@@ -27,7 +27,6 @@ source = ['src/outcome/peewee_validates']
 omit = [
    "test/*"
 ]
-parallel = true
 plugins = ["outcome.devkit.env_coverage"]
 
 [tool.coverage.report]
@@ -73,10 +72,6 @@ version = "0.2.1"
 tag_format = "v$version"
 bump_message = "chore(version): $current_version → $new_version"
 version_files = ["README.md:version-badge", "pyproject.toml:version"]
-
-[pypi]
-name = "otc"
-url = "https://pypi.pkg.outcome.co/simple/"
 
 [build-system]
 requires = ["poetry>=0.12"]

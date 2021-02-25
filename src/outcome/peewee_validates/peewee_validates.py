@@ -1,4 +1,5 @@
 """peewee-validates is a validator module designed to work with the Peewee ORM."""
+from __future__ import annotations
 
 import datetime
 import re
@@ -6,14 +7,27 @@ import types
 from collections.abc import Iterable
 from decimal import Decimal, InvalidOperation
 from inspect import isgenerator, isgeneratorfunction
+from typing import (
+    Any,
+    Callable,
+    Collection,
+    Dict,
+    List,
+    Mapping,
+    Optional,
+    Pattern,
+    Protocol,
+    Sequence,
+    Sized,
+    Tuple,
+    TypeVar,
+    Union,
+    cast,
+    runtime_checkable,
+)
 
 import peewee
 from dateutil.parser import parse as dateutil_parse
-
-try:
-    from playhouse.fields import ManyToManyField  # noqa: WPS433
-except ImportError:
-    from peewee import ManyToManyField  # noqa: WPS433, WPS440
 
 __version__ = '1.0.10'
 
@@ -75,49 +89,101 @@ DEFAULT_MESSAGES = types.MappingProxyType(
 )
 
 
+class ValidatorFn(Protocol):  # pragma: no cover
+    def __call__(self, field: Field, data: Data, ctx: Optional[ModelLike] = ...) -> None:
+        ...
+
+
+Data = Mapping[str, object]
+Numeric = Union[int, float]
+Temporal = Union[datetime.time, datetime.date, datetime.datetime]
+
+
+T = TypeVar('T')
+
+
+@runtime_checkable
+class NumericComparable(Protocol):  # pragma: no cover
+    def __eq__(self, x: object) -> bool:
+        ...
+
+    def __lt__(self: T, x: T) -> bool:
+        ...
+
+    def __gt__(self: T, x: T) -> bool:
+        ...
+
+
+@runtime_checkable
+class TemporalComparable(Protocol):  # pragma: no cover
+    def __eq__(self, o: object) -> bool:
+        ...
+
+    def __lt__(self: T, other: T) -> bool:
+        ...
+
+    def __gt__(self: T, other: T) -> bool:
+        ...
+
+
+Comparable = Union[TemporalComparable, NumericComparable]
+
+
 class ValidationError(Exception):
     """An exception class that should be raised when a validation error occurs on data."""
 
-    def __init__(self, key, *args, **kwargs):
+    def __init__(self, key: str, *args: object, **kwargs: object):
         self.key = key
         self.kwargs = kwargs
         super().__init__(*args)
 
 
-def validate_required():
-    def required_validator(field, data, ctx=None):
+def validate_required() -> ValidatorFn:
+    def required_validator(field: Field, data: Data, ctx: Optional[ModelLike] = None):
         if field.value is None:  # noqa: WPS204
             raise ValidationError(required_const)
 
     return required_validator
 
 
-def validate_not_empty():
-    def empty_validator(field, data, ctx=None):
+def validate_not_empty() -> ValidatorFn:
+    def empty_validator(field: Field, data: Data, ctx: Optional[ModelLike] = None):
         if isinstance(field.value, str) and not field.value.strip():
             raise ValidationError('empty')
 
     return empty_validator
 
 
-def validate_length(low=None, high=None, equal=None):  # noqa: WPS231
-    def length_validator(field, data, ctx=None):  # noqa: WPS231
+def validate_length(  # noqa: WPS231,WPS238
+    low: Optional[Numeric] = None, high: Optional[Numeric] = None, equal: Optional[Numeric] = None,
+) -> ValidatorFn:
+    def length_validator(field: Field, data: Data, ctx: Optional[ModelLike] = None):  # noqa: WPS231,WPS238
         if field.value is None:
             return
-        if equal is not None and len(field.value) != equal:
+
+        value = field.value
+
+        if not isinstance(value, Sized):  # pragma: no cover
+            raise ValidationError('invalid')
+
+        if equal is not None and len(value) != equal:
             raise ValidationError('length_equal', equal=equal)
-        if low is not None and len(field.value) < low:
+        if low is not None and len(value) < low:
             key = 'length_low' if high is None else 'length_between'
             raise ValidationError(key, low=low, high=high)
-        if high is not None and len(field.value) > high:
+        if high is not None and len(value) > high:
             key = 'length_high' if low is None else 'length_between'
             raise ValidationError(key, low=low, high=high)
 
     return length_validator
 
 
-def validate_one_of(values):
-    def one_of_validator(field, data, ctx=None):
+Values = Collection[object]
+ValuesFn = Callable[[], Values]
+
+
+def validate_one_of(values: Union[Values, ValuesFn]) -> ValidatorFn:
+    def one_of_validator(field: Field, data: Data, ctx: Optional[ModelLike] = None):
         if field.value is None:
             return
         options = values
@@ -129,33 +195,63 @@ def validate_one_of(values):
     return one_of_validator
 
 
-def validate_none_of(values):
-    def none_of_validator(field, data, ctx=None):
+def validate_none_of(values: Union[Values, ValuesFn]) -> ValidatorFn:
+    def none_of_validator(field: Field, data: Data, ctx: Optional[ModelLike] = None):
         options = values
         if callable(options):
             options = options()
         if field.value in options:
-            raise ValidationError('none_of', choices=str.join(', ', options))
+            raise ValidationError('none_of', choices=', '.join(map(str, options)))
 
     return none_of_validator
 
 
-def validate_range(low=None, high=None):  # noqa: WPS231
-    def range_validator(field, data, ctx=None):
+def validate_numeric_range(  # noqa: WPS231
+    low: Optional[NumericComparable] = None, high: Optional[NumericComparable] = None,
+) -> ValidatorFn:
+    def numeric_range_validator(field: Field, data: Data, ctx: Optional[ModelLike] = None):  # noqa: WPS231
         if field.value is None:
             return
-        if low is not None and field.value < low:
+
+        value = field.value
+
+        if not isinstance(value, NumericComparable):  # pragma: no cover
+            raise ValidationError('invalid comparable')
+
+        if low is not None and value < low:
             key = 'range_low' if high is None else 'range_between'
             raise ValidationError(key, low=low, high=high)
-        if high is not None and field.value > high:
+        if high is not None and value > high:
             key = 'range_high' if high is None else 'range_between'
             raise ValidationError(key, low=low, high=high)
 
-    return range_validator
+    return numeric_range_validator
 
 
-def validate_equal(value):
-    def equal_validator(field, data, ctx=None):
+def validate_temporal_range(  # noqa: WPS231
+    low: Optional[TemporalComparable] = None, high: Optional[TemporalComparable] = None,
+) -> ValidatorFn:
+    def temporal_range_validator(field: Field, data: Data, ctx: Optional[ModelLike] = None):  # noqa: WPS231
+        if field.value is None:
+            return
+
+        value = field.value
+
+        if not isinstance(value, TemporalComparable):  # pragma: no cover
+            raise ValidationError('invalid comparable')
+
+        if low is not None and value < low:
+            key = 'range_low' if high is None else 'range_between'
+            raise ValidationError(key, low=low, high=high)
+        if high is not None and value > high:
+            key = 'range_high' if high is None else 'range_between'
+            raise ValidationError(key, low=low, high=high)
+
+    return temporal_range_validator
+
+
+def validate_equal(value: object) -> ValidatorFn:
+    def equal_validator(field: Field, data: Data, ctx: Optional[ModelLike] = None):
         if field.value is None:
             return
         if field.value != value:
@@ -164,8 +260,8 @@ def validate_equal(value):
     return equal_validator
 
 
-def validate_matches(other):
-    def matches_validator(field, data, ctx=None):
+def validate_matches(other: str) -> ValidatorFn:
+    def matches_validator(field: Field, data: Data, ctx: Optional[ModelLike] = None):
         if field.value is None:
             return
         if field.value != data.get(other):
@@ -174,10 +270,10 @@ def validate_matches(other):
     return matches_validator
 
 
-def validate_regexp(pattern, flags=0):
+def validate_regexp(pattern: Union[str, Pattern[str]], flags: int = 0) -> ValidatorFn:
     regex = re.compile(pattern, flags) if isinstance(pattern, str) else pattern
 
-    def regexp_validator(field, data, ctx=None):
+    def regexp_validator(field: Field, data: Data, ctx: Optional[ModelLike] = None):
         if field.value is None:
             return
         if regex.match(str(field.value)) is None:
@@ -186,8 +282,45 @@ def validate_regexp(pattern, flags=0):
     return regexp_validator
 
 
-def validate_function(method, **kwargs):
-    def function_validator(field, data, ctx=None):
+class CustomValidatorValueFn(Protocol):  # pragma: no cover
+    __name__: str
+
+    def __call__(self, value: object) -> bool:
+        ...
+
+
+class CustomValidatorValueArgsFn(Protocol):  # pragma: no cover
+    __name__: str
+
+    def __call__(self, value: object, *args: object) -> bool:
+        ...
+
+
+class CustomValidatorValueKwargsFn(Protocol):  # pragma: no cover
+    __name__: str
+
+    def __call__(self, value: object, **kwargs: object) -> bool:
+        ...
+
+
+class CustomValidatorValueArgsKwargsFn(Protocol):  # pragma: no cover
+    __name__: str
+
+    def __call__(self, value: object, *args: object, **kwargs: object) -> bool:
+        ...
+
+
+CustomValidatorFn = Union[
+    CustomValidatorValueFn,
+    CustomValidatorValueArgsFn,
+    CustomValidatorValueKwargsFn,
+    CustomValidatorValueArgsKwargsFn,
+    Callable[..., bool],
+]
+
+
+def validate_function(method: CustomValidatorFn, **kwargs: object) -> ValidatorFn:
+    def function_validator(field: Field, data: Data, ctx: Optional[ModelLike] = None):
         if field.value is None:
             return
         if not method(field.value, **kwargs):
@@ -196,17 +329,17 @@ def validate_function(method, **kwargs):
     return function_validator
 
 
-def validate_email():  # noqa: WPS231
+def validate_email() -> ValidatorFn:  # noqa: WPS231
     user_regex = re.compile(
         r"(^[-!#$%&'*+/=?^`{}|~\w]+(\.[-!#$%&'*+/=?^`{}|~\w]+)*$"  # noqa: P103
-        r'|^"([\001-\010\013\014\016-\037!#-\[\]-\177]'
-        r'|\\[\001-\011\013\014\016-\177])*"$)',  # noqa: WPS326
+        + r'|^"([\001-\010\013\014\016-\037!#-\[\]-\177]'  # noqa: P103
+        + r'|\\[\001-\011\013\014\016-\177])*"$)',  # noqa: WPS326
         re.IGNORECASE | re.UNICODE,
     )
 
     domain_regex = re.compile(
         r'(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+'
-        r'(?:[A-Z]{2,6}|[A-Z0-9-]{2,})$'  # noqa: WPS326
+        '(?:[A-Z]{2,6}|[A-Z0-9-]{2,})$'  # noqa: WPS326
         r'|^\[(25[0-5]|2[0-4]\d|[0-1]?\d?\d)'  # noqa: WPS326
         r'(\.(25[0-5]|2[0-4]\d|[0-1]?\d?\d)){3}\]$',  # noqa: WPS326
         re.IGNORECASE | re.UNICODE,
@@ -214,7 +347,7 @@ def validate_email():  # noqa: WPS231
 
     domain_whitelist = ('localhost',)
 
-    def email_validator(field, data, ctx=None):
+    def email_validator(field: Field, data: Data, ctx: Optional[ModelLike] = None):
         if field.value is None:
             return
 
@@ -237,8 +370,28 @@ def validate_email():  # noqa: WPS231
     return email_validator
 
 
-def validate_model_unique(lookup_field, queryset, pk_field=None, pk_value=None):
-    def unique_validator(field, data, ctx=None):
+class LookupField(Protocol):
+    name: str
+
+
+class QueryLike(Protocol):  # pragma: no cover
+    def where(self, *args: object) -> QueryLike:
+        ...
+
+    def count(self) -> int:
+        ...
+
+    def get(self, *args: object) -> Optional[object]:
+        ...
+
+    def select(self) -> QueryLike:
+        ...
+
+
+def validate_model_unique(
+    lookup_field: LookupField, queryset: QueryLike, pk_field: Optional[peewee.Field] = None, pk_value: Optional[object] = None,
+) -> ValidatorFn:
+    def unique_validator(field: Field, data: Data, ctx: Optional[ModelLike] = None):
         # If we have a PK, ignore it because it represents the current record.
         query = queryset.where(lookup_field == field.value)
         if pk_field and pk_value:
@@ -249,24 +402,34 @@ def validate_model_unique(lookup_field, queryset, pk_field=None, pk_value=None):
     return unique_validator
 
 
-def coerce_single_instance(lookup_field, value):
+def coerce_single_instance(lookup_field: LookupField, value: object) -> Any:
     if isinstance(value, dict):
-        return value.get(lookup_field.name)
+        return cast(Dict[str, object], value).get(lookup_field.name)
     if isinstance(value, peewee.Model):
         return getattr(value, lookup_field.name)
     return value
 
 
-def isiterable_notstring(value):
+def isiterable_notstring(value: object):
     if isinstance(value, str):
         return False
     return isinstance(value, Iterable) or isgeneratorfunction(value) or isgenerator(value)
 
 
+V = TypeVar('V')
+
+DefaultFactory = Callable[[], object]
+Default = Union[object, DefaultFactory]
+
+
 class Field:
     __slots__ = (value_const, 'name', required_const, default_const, validators_const)
 
-    def __init__(self, required=False, default=None, validators=None):
+    name: Optional[str]
+    default: Optional[Default]
+    value: Optional[object]
+
+    def __init__(self, required: bool = False, default: Optional[Default] = None, validators: Optional[List[ValidatorFn]] = None):
         self.default = default
         self.value = None
         self.name = None
@@ -274,19 +437,22 @@ class Field:
         if required:
             self.validators.append(validate_required())
 
-    def coerce(self, value):
+    def coerce(self, value: V) -> V:
         return value
 
-    def get_value(self, name, data):
+    def get_value(self, name: str, data: Data) -> Optional[object]:  # noqa: WPS615
         if name in data:
             return data.get(name)
-        if self.default:
-            if callable(self.default):
-                return self.default()
-            return self.default
+
+        default = self.default
+
+        if default:
+            if callable(default):
+                return cast(DefaultFactory, default)()
+            return default
         return None
 
-    def validate(self, name, data, ctx):
+    def validate(self, name: str, data: Data, ctx: Optional[ModelLike]):
         self.value = self.get_value(name, data)
         self.name = name
         if self.value is not None:
@@ -298,28 +464,42 @@ class Field:
 class StringField(Field):
     __slots__ = (value_const, required_const, default_const, validators_const)
 
-    def __init__(self, required=False, max_length=None, min_length=None, default=None, validators=None):
+    def __init__(
+        self,
+        required: bool = False,
+        max_length: Optional[Numeric] = None,
+        min_length: Optional[Numeric] = None,
+        default: Optional[Default] = None,
+        validators: Optional[List[ValidatorFn]] = None,
+    ):
         validators = validators or []
         if max_length or min_length:
             validators.append(validate_length(high=max_length, low=min_length))
         super().__init__(required=required, default=default, validators=validators)
 
-    def coerce(self, value):
+    def coerce(self, value: Optional[object]) -> str:  # type: ignore
         return str(value)
 
 
 class FloatField(Field):
     __slots__ = (value_const, required_const, default_const, validators_const)
 
-    def __init__(self, required=False, low=None, high=None, default=None, validators=None):
+    def __init__(
+        self,
+        required: bool = False,
+        low: Optional[Numeric] = None,
+        high: Optional[Numeric] = None,
+        default: Optional[Default] = None,
+        validators: Optional[List[ValidatorFn]] = None,
+    ):
         validators = validators or []
         if low or high:
-            validators.append(validate_range(low=low, high=high))
+            validators.append(validate_numeric_range(low=low, high=high))
         super().__init__(required=required, default=default, validators=validators)
 
-    def coerce(self, value):
+    def coerce(self, value: Optional[object]) -> Optional[float]:  # type: ignore
         try:
-            return float(value) if value else None
+            return float(value) if value else None  # type: ignore
         except (TypeError, ValueError):
             raise ValidationError('coerce_float')
 
@@ -327,15 +507,22 @@ class FloatField(Field):
 class IntegerField(Field):
     __slots__ = (value_const, required_const, default_const, validators_const)
 
-    def __init__(self, required=False, low=None, high=None, default=None, validators=None):
+    def __init__(
+        self,
+        required: bool = False,
+        low: Optional[Numeric] = None,
+        high: Optional[Numeric] = None,
+        default: Optional[Default] = None,
+        validators: Optional[List[ValidatorFn]] = None,
+    ):
         validators = validators or []
         if low or high:
-            validators.append(validate_range(low=low, high=high))
+            validators.append(validate_numeric_range(low=low, high=high))
         super().__init__(required=required, default=default, validators=validators)
 
-    def coerce(self, value):
+    def coerce(self, value: Optional[object]) -> Optional[int]:  # type: ignore
         try:
-            return int(value) if value is not None else None
+            return int(value) if value is not None else None  # type: ignore
         except (TypeError, ValueError):
             raise ValidationError('coerce_int')
 
@@ -343,15 +530,22 @@ class IntegerField(Field):
 class DecimalField(Field):
     __slots__ = (value_const, required_const, default_const, validators_const)
 
-    def __init__(self, required=False, low=None, high=None, default=None, validators=None):
+    def __init__(
+        self,
+        required: bool = False,
+        low: Optional[Numeric] = None,
+        high: Optional[Numeric] = None,
+        default: Optional[Default] = None,
+        validators: Optional[List[ValidatorFn]] = None,
+    ):
         validators = validators or []
         if low or high:
-            validators.append(validate_range(low=low, high=high))
+            validators.append(validate_numeric_range(low=low, high=high))
         super().__init__(required=required, default=default, validators=validators)
 
-    def coerce(self, value):
+    def coerce(self, value: Optional[object]) -> Optional[Decimal]:  # type: ignore
         try:
-            return Decimal(value) if value else None
+            return Decimal(value) if value else None  # type: ignore
         except (TypeError, ValueError, InvalidOperation):
             raise ValidationError('coerce_decimal')
 
@@ -359,17 +553,24 @@ class DecimalField(Field):
 class DateField(Field):
     __slots__ = (value_const, required_const, default_const, validators_const)
 
-    def __init__(self, required=False, low=None, high=None, default=None, validators=None):
+    def __init__(
+        self,
+        required: bool = False,
+        low: Optional[datetime.date] = None,
+        high: Optional[datetime.date] = None,
+        default: Optional[Default] = None,
+        validators: Optional[List[ValidatorFn]] = None,
+    ):
         validators = validators or []
         if low or high:
-            validators.append(validate_range(low=low, high=high))
+            validators.append(validate_temporal_range(low=low, high=high))
         super().__init__(required=required, default=default, validators=validators)
 
-    def coerce(self, value):
+    def coerce(self, value: Optional[object]) -> Optional[datetime.date]:  # type: ignore
         if not value or isinstance(value, datetime.date):
             return value
         try:
-            return dateutil_parse(value).date()
+            return dateutil_parse(value).date()  # type: ignore
         except (TypeError, ValueError):
             raise ValidationError('coerce_date')
 
@@ -377,17 +578,24 @@ class DateField(Field):
 class TimeField(Field):
     __slots__ = (value_const, required_const, default_const, validators_const)
 
-    def __init__(self, required=False, low=None, high=None, default=None, validators=None):
+    def __init__(
+        self,
+        required: bool = False,
+        low: Optional[datetime.time] = None,
+        high: Optional[datetime.time] = None,
+        default: Optional[Default] = None,
+        validators: Optional[List[ValidatorFn]] = None,
+    ):
         validators = validators or []
         if low or high:
-            validators.append(validate_range(low=low, high=high))
+            validators.append(validate_temporal_range(low=low, high=high))
         super().__init__(required=required, default=default, validators=validators)
 
-    def coerce(self, value):
+    def coerce(self, value: Optional[object]) -> Optional[datetime.time]:  # type: ignore
         if not value or isinstance(value, datetime.time):
             return value
         try:
-            return dateutil_parse(value).time()
+            return dateutil_parse(value).time()  # type: ignore
         except (TypeError, ValueError):
             raise ValidationError('coerce_time')
 
@@ -395,17 +603,24 @@ class TimeField(Field):
 class DateTimeField(Field):
     __slots__ = (value_const, required_const, default_const, validators_const)
 
-    def __init__(self, required=False, low=None, high=None, default=None, validators=None):
+    def __init__(
+        self,
+        required: bool = False,
+        low: Optional[datetime.datetime] = None,
+        high: Optional[datetime.datetime] = None,
+        default: Optional[Default] = None,
+        validators: Optional[List[ValidatorFn]] = None,
+    ):
         validators = validators or []
         if low or high:
-            validators.append(validate_range(low=low, high=high))
+            validators.append(validate_temporal_range(low=low, high=high))
         super().__init__(required=required, default=default, validators=validators)
 
-    def coerce(self, value):
+    def coerce(self, value: Optional[object]) -> Optional[datetime.datetime]:  # type: ignore
         if not value or isinstance(value, datetime.datetime):
             return value
         try:
-            return dateutil_parse(value)
+            return dateutil_parse(value)  # type: ignore
         except (TypeError, ValueError):
             raise ValidationError('coerce_datetime')
 
@@ -415,22 +630,22 @@ class BooleanField(Field):
 
     false_values = ('0', '{}', '[]', 'none', 'false')  # noqa: P103
 
-    def coerce(self, value):
+    def coerce(self, value: Optional[object]) -> bool:  # type: ignore
         return str(value).lower() not in self.false_values
 
 
 class ModelChoiceField(Field):
     __slots__ = ('query', 'lookup_field', value_const, required_const, default_const, validators_const)
 
-    def __init__(self, query, lookup_field, required=False, **kwargs):
+    def __init__(self, query: QueryLike, lookup_field: LookupField, required: bool = False, **kwargs: object):
         self.query = query
         self.lookup_field = lookup_field
         super().__init__(required=required, **kwargs)
 
-    def coerce(self, value):
+    def coerce(self, value: object) -> Any:  # type: ignore
         return coerce_single_instance(self.lookup_field, value)
 
-    def validate(self, name, data, ctx):
+    def validate(self, name: str, data: Data, ctx: Optional[ModelLike]):
         super().validate(name, data, ctx)
         if self.value is not None:
             try:
@@ -442,31 +657,39 @@ class ModelChoiceField(Field):
 class ManyModelChoiceField(Field):
     __slots__ = ('query', 'lookup_field', value_const, required_const, default_const, validators_const)
 
-    def __init__(self, query, lookup_field, required=False, **kwargs):
+    def __init__(self, query: QueryLike, lookup_field: LookupField, required: bool = False, **kwargs: object):
         self.query = query
         self.lookup_field = lookup_field
         super().__init__(required=required, **kwargs)
 
-    def coerce(self, value):
+    def coerce(self, value: object) -> Iterable[object]:  # type: ignore
         if isinstance(value, dict):
-            value = [value]
-        if not isiterable_notstring(value):
-            value = [value]
+            value = cast(Sequence[object], [value])
+        if not isiterable_notstring(value):  # noqa: WPS504
+            value = cast(Sequence[object], [value])
+        else:
+            value = cast(Sequence[object], value)
         return [coerce_single_instance(self.lookup_field, v) for v in value]
 
-    def validate(self, name, data, ctx):
+    def validate(self, name: str, data: Data, ctx: Optional[ModelLike]):
         super().validate(name, data, ctx)
-        if self.value is not None:
+        if self.value is not None and isinstance(self.value, Sequence):
+            value = cast(Sequence[object], self.value)
             try:
                 # self.query could be a query like "User.select()" or a model like "User"
                 # so ".select().where()" handles both cases.
-                self.value = [self.query.select().where(self.lookup_field == v).get() for v in self.value if v]
+                self.value = [self.query.select().where(self.lookup_field == v).get() for v in value if v]
             except (AttributeError, ValueError, peewee.DoesNotExist):
-                raise ValidationError('related', field=self.lookup_field.name, values=self.value)
+                raise ValidationError('related', field=self.lookup_field.name, values=value)
 
 
 class ValidatorOptions:
-    def __init__(self, obj):
+    messages: Dict[str, str]
+    fields: Dict[str, Field]
+    only: Iterable[str]
+    exclude: Iterable[str]
+
+    def __init__(self, obj: object):
         self.fields = {}
         self.messages = {}
         self.only = []
@@ -481,6 +704,9 @@ class Validator:
 
     __slots__ = ('data', 'errors', '_meta')
 
+    data: Dict[str, object]
+    errors: Dict[str, str]
+
     def __init__(self):
         self.errors = {}
         self.data = {}
@@ -490,7 +716,7 @@ class Validator:
 
         self.initialize_fields()
 
-    def add_error(self, name, error):
+    def add_error(self, name: str, error: ValidationError):
         message = self._meta.messages.get(f'{name}.{error.key}')
         if not message:
             message = self._meta.messages.get(error.key)
@@ -504,7 +730,13 @@ class Validator:
             if isinstance(obj, Field):
                 self._meta.fields[field] = obj
 
-    def validate(self, data=None, only=None, exclude=None, ctx=None):  # noqa: WPS231
+    def validate(  # noqa: WPS231
+        self,
+        data: Optional[Data] = None,
+        only: Optional[Iterable[str]] = None,
+        exclude: Optional[Iterable[str]] = None,
+        ctx: Optional[ModelLike] = None,
+    ):
         only = only or []
         exclude = exclude or []
         data = data or {}
@@ -535,22 +767,44 @@ class Validator:
 
         return not self.errors
 
-    def clean_fields(self, data):
-        for name, value in data.items():  # noqa: WPS327
+    def clean_fields(self, data: Dict[str, object]):
+        for name, value in data.items():
             try:
                 method = getattr(self, f'clean_{name}', None)
                 if method:
                     self.data[name] = method(value)
             except ValidationError as err:
                 self.add_error(name, err)
-                continue
 
-    def clean(self, data):
+    def clean(self, data: Dict[str, object]) -> Dict[str, object]:
         return data
 
 
+class ModelMetaLike(Protocol):
+    primary_key: peewee.Field
+    fields: Dict[str, peewee.Field]
+    indexes: List[Tuple[Tuple[str, ...], bool]]  # noqa: WPS234
+
+
+class ModelLike(QueryLike):  # pragma: no cover
+    _meta: ModelMetaLike
+    __data__: Data
+
+    def get_id(self) -> object:
+        ...
+
+    def select(self) -> QueryLike:
+        ...
+
+    def filter(self, *args: object) -> QueryLike:  # noqa: A003
+        ...
+
+    def save(self, force_insert: bool) -> int:
+        ...
+
+
 class ModelValidator(Validator):
-    __slots__ = ('data', 'errors', '_meta', 'instance', 'pk_field', 'pk_value')
+    __slots__ = ('data', 'errors', '_meta', 'instance', 'pk_field', 'pk_value', 'meta')
 
     FIELD_MAP = {  # noqa: WPS115
         'smallint': IntegerField,
@@ -565,20 +819,23 @@ class ModelValidator(Validator):
         'time': TimeField,
     }
 
-    def __init__(self, instance):
+    instance: ModelLike
+
+    def __init__(self, instance: object):
         if not isinstance(instance, peewee.Model):
             message = 'First argument to {} must be an instance of peewee.Model.'  # noqa: P103
             raise AttributeError(message.format(type(self).__name__))
 
-        self.instance = instance
-        self.pk_field = self.instance._meta.primary_key
+        self.instance = cast(ModelLike, instance)
+        self.meta = self.instance._meta  # type: ignore
+        self.pk_field = self.meta.primary_key
         self.pk_value = self.instance.get_id()
 
         super().__init__()
 
     def initialize_fields(self):
         # # Pull all the "normal" fields off the model instance meta.
-        for name, field in self.instance._meta.fields.items():
+        for name, field in self.meta.fields.items():
             if getattr(field, 'primary_key', False):
                 continue
             self._meta.fields[name] = self.convert_field(name, field)
@@ -587,12 +844,12 @@ class ModelValidator(Validator):
         # Pull them directly off the class.
         for mtm_name in dir(type(self.instance)):  # noqa: WPS421
             mtm_field = getattr(type(self.instance), mtm_name, None)
-            if isinstance(mtm_field, ManyToManyField):
+            if isinstance(mtm_field, peewee.ManyToManyField):
                 self._meta.fields[mtm_name] = self.convert_field(mtm_name, mtm_field)
 
         super().initialize_fields()
 
-    def convert_field(self, name, field):
+    def convert_field(self, name: str, field: peewee.Field):
         field_type = field.field_type.lower()
 
         pwv_field = ModelValidator.FIELD_MAP.get(field_type, StringField)
@@ -617,22 +874,23 @@ class ModelValidator(Validator):
             validators.append(validate_model_unique(field, self.instance.select(), self.pk_field, self.pk_value))
 
         if isinstance(field, peewee.ForeignKeyField):
-            rel_field = field.rel_field
-            return ModelChoiceField(field.rel_model, rel_field, default=default, validators=validators)
+            rel_field = cast(peewee.ForeignKeyField, field.rel_field)
+            return ModelChoiceField(cast(ModelLike, field.rel_model), rel_field, default=default, validators=validators)
 
-        if isinstance(field, ManyToManyField):
+        if isinstance(field, peewee.ManyToManyField):
+            meta = cast(ModelLike, field.rel_model)._meta  # type: ignore
             return ManyModelChoiceField(
-                field.rel_model, field.rel_model._meta.primary_key, default=default, validators=validators,
+                cast(ModelLike, field.rel_model), meta.primary_key, default=default, validators=validators,
             )
 
         return pwv_field(default=default, validators=validators)
 
-    def validate(self, data=None, only=None, exclude=None):  # noqa: WPS231
-        data = data or {}
+    def validate(self, data: Optional[Data] = None, only: Optional[Iterable[str]] = None, exclude: Optional[Iterable[str]] = None):  # type: ignore  # noqa: WPS231,E501
+        data = dict(data or {})
         only = only or self._meta.only
         exclude = exclude or self._meta.exclude
 
-        for name, _ in self.instance._meta.fields.items():
+        for name, _ in self.meta.fields.items():
             if name in exclude or (only and name not in only):
                 continue
             try:
@@ -649,10 +907,10 @@ class ModelValidator(Validator):
 
         return not self.errors
 
-    def perform_index_validation(self, data):  # noqa: WPS231
+    def perform_index_validation(self, data: Data):  # noqa: WPS231
         # Build a list of dict containing query values for each unique index.
         index_data = []
-        for columns, unique in self.instance._meta.indexes:
+        for columns, unique in self.meta.indexes:
             if not unique:
                 continue
             index_data.append({col: data.get(col, None) for col in columns})
@@ -668,7 +926,7 @@ class ModelValidator(Validator):
                 for col in index.keys():
                     self.add_error(col, err)
 
-    def save(self, force_insert=False):
+    def save(self, force_insert: bool = False) -> int:
         delayed = {}
         for field, value in self.data.items():
             model_field = getattr(type(self.instance), field, None)
@@ -676,7 +934,7 @@ class ModelValidator(Validator):
             # If this is a many-to-many field, we cannot save it to the instance until the instance
             # is saved to the database. Collect these fields and delay the setting until after
             # the model instance is saved.
-            if isinstance(model_field, ManyToManyField):
+            if isinstance(model_field, peewee.ManyToManyField):
                 if value is not None:  # pragma: no cover
                     delayed[field] = value
                 continue
