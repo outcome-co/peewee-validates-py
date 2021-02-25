@@ -89,7 +89,7 @@ DEFAULT_MESSAGES = types.MappingProxyType(
 )
 
 
-class ValidatorFn(Protocol):
+class ValidatorFn(Protocol):  # pragma: no cover
     def __call__(self, field: Field, data: Data, ctx: Optional[ModelLike] = ...) -> None:
         ...
 
@@ -103,7 +103,7 @@ T = TypeVar('T')
 
 
 @runtime_checkable
-class NumericComparable(Protocol):
+class NumericComparable(Protocol):  # pragma: no cover
     def __eq__(self, x: object) -> bool:
         ...
 
@@ -115,7 +115,7 @@ class NumericComparable(Protocol):
 
 
 @runtime_checkable
-class TemporalComparable(Protocol):
+class TemporalComparable(Protocol):  # pragma: no cover
     def __eq__(self, o: object) -> bool:
         ...
 
@@ -163,7 +163,7 @@ def validate_length(  # noqa: WPS231,WPS238
 
         value = field.value
 
-        if not isinstance(value, Sized):
+        if not isinstance(value, Sized):  # pragma: no cover
             raise ValidationError('invalid')
 
         if equal is not None and len(value) != equal:
@@ -215,7 +215,7 @@ def validate_numeric_range(  # noqa: WPS231
 
         value = field.value
 
-        if not isinstance(value, NumericComparable):
+        if not isinstance(value, NumericComparable):  # pragma: no cover
             raise ValidationError('invalid comparable')
 
         if low is not None and value < low:
@@ -237,7 +237,7 @@ def validate_temporal_range(  # noqa: WPS231
 
         value = field.value
 
-        if not isinstance(value, TemporalComparable):
+        if not isinstance(value, TemporalComparable):  # pragma: no cover
             raise ValidationError('invalid comparable')
 
         if low is not None and value < low:
@@ -282,28 +282,28 @@ def validate_regexp(pattern: Union[str, Pattern[str]], flags: int = 0) -> Valida
     return regexp_validator
 
 
-class CustomValidatorValueFn(Protocol):
+class CustomValidatorValueFn(Protocol):  # pragma: no cover
     __name__: str
 
     def __call__(self, value: object) -> bool:
         ...
 
 
-class CustomValidatorValueArgsFn(Protocol):
+class CustomValidatorValueArgsFn(Protocol):  # pragma: no cover
     __name__: str
 
     def __call__(self, value: object, *args: object) -> bool:
         ...
 
 
-class CustomValidatorValueKwargsFn(Protocol):
+class CustomValidatorValueKwargsFn(Protocol):  # pragma: no cover
     __name__: str
 
     def __call__(self, value: object, **kwargs: object) -> bool:
         ...
 
 
-class CustomValidatorValueArgsKwargsFn(Protocol):
+class CustomValidatorValueArgsKwargsFn(Protocol):  # pragma: no cover
     __name__: str
 
     def __call__(self, value: object, *args: object, **kwargs: object) -> bool:
@@ -374,7 +374,7 @@ class LookupField(Protocol):
     name: str
 
 
-class QueryLike(Protocol):
+class QueryLike(Protocol):  # pragma: no cover
     def where(self, *args: object) -> QueryLike:
         ...
 
@@ -786,7 +786,7 @@ class ModelMetaLike(Protocol):
     indexes: List[Tuple[Tuple[str, ...], bool]]  # noqa: WPS234
 
 
-class ModelLike(QueryLike):
+class ModelLike(QueryLike):  # pragma: no cover
     _meta: ModelMetaLike
     __data__: Data
 
