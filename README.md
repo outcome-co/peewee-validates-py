@@ -1,5 +1,5 @@
 # peewee-validates-py
-![ci-badge](https://github.com/outcome-co/peewee-validates-py/workflows/Checks/badge.svg?branch=v0.2.0) ![version-badge](https://img.shields.io/badge/version-0.2.0-brightgreen)
+![ci-badge](https://github.com/outcome-co/peewee-validates-py/workflows/Checks/badge.svg?branch=v0.2.1) ![version-badge](https://img.shields.io/badge/version-0.2.1-brightgreen)
 
 Description TBD
 
