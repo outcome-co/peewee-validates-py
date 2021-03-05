@@ -12,6 +12,7 @@ from typing import (
     Callable,
     Collection,
     Dict,
+    Generic,
     List,
     Mapping,
     Optional,
@@ -89,17 +90,18 @@ DEFAULT_MESSAGES = types.MappingProxyType(
 )
 
 
-class ValidatorFn(Protocol):  # pragma: no cover
-    def __call__(self, field: Field, data: Data, ctx: Optional[ModelLike] = ...) -> None:
+T = TypeVar('T')
+M = TypeVar('M', bound=peewee.Model)
+
+
+class ValidatorFn(Protocol[T]):  # pragma: no cover
+    def __call__(self, field: Field[T], data: Data, ctx: Optional[T] = ...) -> None:
         ...
 
 
 Data = Mapping[str, object]
 Numeric = Union[int, float]
 Temporal = Union[datetime.time, datetime.date, datetime.datetime]
-
-
-T = TypeVar('T')
 
 
 @runtime_checkable
@@ -138,16 +140,16 @@ class ValidationError(Exception):
         super().__init__(*args)
 
 
-def validate_required() -> ValidatorFn:
-    def required_validator(field: Field, data: Data, ctx: Optional[ModelLike] = None):
+def validate_required() -> ValidatorFn[Any]:
+    def required_validator(field: Field[Any], data: Data, ctx: Any = None):
         if field.value is None:  # noqa: WPS204
             raise ValidationError(required_const)
 
     return required_validator
 
 
-def validate_not_empty() -> ValidatorFn:
-    def empty_validator(field: Field, data: Data, ctx: Optional[ModelLike] = None):
+def validate_not_empty() -> ValidatorFn[Any]:
+    def empty_validator(field: Field[Any], data: Data, ctx: Any = None):
         if isinstance(field.value, str) and not field.value.strip():
             raise ValidationError('empty')
 
@@ -156,8 +158,8 @@ def validate_not_empty() -> ValidatorFn:
 
 def validate_length(  # noqa: WPS231,WPS238
     low: Optional[Numeric] = None, high: Optional[Numeric] = None, equal: Optional[Numeric] = None,
-) -> ValidatorFn:
-    def length_validator(field: Field, data: Data, ctx: Optional[ModelLike] = None):  # noqa: WPS231,WPS238
+) -> ValidatorFn[Any]:
+    def length_validator(field: Field[Any], data: Data, ctx: Any = None):  # noqa: WPS231,WPS238
         if field.value is None:
             return
 
@@ -182,8 +184,8 @@ Values = Collection[object]
 ValuesFn = Callable[[], Values]
 
 
-def validate_one_of(values: Union[Values, ValuesFn]) -> ValidatorFn:
-    def one_of_validator(field: Field, data: Data, ctx: Optional[ModelLike] = None):
+def validate_one_of(values: Union[Values, ValuesFn]) -> ValidatorFn[Any]:
+    def one_of_validator(field: Field[Any], data: Data, ctx: Any = None):
         if field.value is None:
             return
         options = values
@@ -195,8 +197,8 @@ def validate_one_of(values: Union[Values, ValuesFn]) -> ValidatorFn:
     return one_of_validator
 
 
-def validate_none_of(values: Union[Values, ValuesFn]) -> ValidatorFn:
-    def none_of_validator(field: Field, data: Data, ctx: Optional[ModelLike] = None):
+def validate_none_of(values: Union[Values, ValuesFn]) -> ValidatorFn[Any]:
+    def none_of_validator(field: Field[Any], data: Data, ctx: Any = None):
         options = values
         if callable(options):
             options = options()
@@ -208,8 +210,8 @@ def validate_none_of(values: Union[Values, ValuesFn]) -> ValidatorFn:
 
 def validate_numeric_range(  # noqa: WPS231
     low: Optional[NumericComparable] = None, high: Optional[NumericComparable] = None,
-) -> ValidatorFn:
-    def numeric_range_validator(field: Field, data: Data, ctx: Optional[ModelLike] = None):  # noqa: WPS231
+) -> ValidatorFn[Any]:
+    def numeric_range_validator(field: Field[Any], data: Data, ctx: Any = None):  # noqa: WPS231
         if field.value is None:
             return
 
@@ -230,8 +232,8 @@ def validate_numeric_range(  # noqa: WPS231
 
 def validate_temporal_range(  # noqa: WPS231
     low: Optional[TemporalComparable] = None, high: Optional[TemporalComparable] = None,
-) -> ValidatorFn:
-    def temporal_range_validator(field: Field, data: Data, ctx: Optional[ModelLike] = None):  # noqa: WPS231
+) -> ValidatorFn[Any]:
+    def temporal_range_validator(field: Field[Any], data: Data, ctx: Any = None):  # noqa: WPS231
         if field.value is None:
             return
 
@@ -250,8 +252,8 @@ def validate_temporal_range(  # noqa: WPS231
     return temporal_range_validator
 
 
-def validate_equal(value: object) -> ValidatorFn:
-    def equal_validator(field: Field, data: Data, ctx: Optional[ModelLike] = None):
+def validate_equal(value: object) -> ValidatorFn[Any]:
+    def equal_validator(field: Field[Any], data: Data, ctx: Any = None):
         if field.value is None:
             return
         if field.value != value:
@@ -260,8 +262,8 @@ def validate_equal(value: object) -> ValidatorFn:
     return equal_validator
 
 
-def validate_matches(other: str) -> ValidatorFn:
-    def matches_validator(field: Field, data: Data, ctx: Optional[ModelLike] = None):
+def validate_matches(other: str) -> ValidatorFn[Any]:
+    def matches_validator(field: Field[Any], data: Data, ctx: Any = None):
         if field.value is None:
             return
         if field.value != data.get(other):
@@ -270,10 +272,10 @@ def validate_matches(other: str) -> ValidatorFn:
     return matches_validator
 
 
-def validate_regexp(pattern: Union[str, Pattern[str]], flags: int = 0) -> ValidatorFn:
+def validate_regexp(pattern: Union[str, Pattern[str]], flags: int = 0) -> ValidatorFn[Any]:
     regex = re.compile(pattern, flags) if isinstance(pattern, str) else pattern
 
-    def regexp_validator(field: Field, data: Data, ctx: Optional[ModelLike] = None):
+    def regexp_validator(field: Field[Any], data: Data, ctx: Any = None):
         if field.value is None:
             return
         if regex.match(str(field.value)) is None:
@@ -319,8 +321,8 @@ CustomValidatorFn = Union[
 ]
 
 
-def validate_function(method: CustomValidatorFn, **kwargs: object) -> ValidatorFn:
-    def function_validator(field: Field, data: Data, ctx: Optional[ModelLike] = None):
+def validate_function(method: CustomValidatorFn, **kwargs: object) -> ValidatorFn[Any]:
+    def function_validator(field: Field[Any], data: Data, ctx: Any = None):
         if field.value is None:
             return
         if not method(field.value, **kwargs):
@@ -329,7 +331,7 @@ def validate_function(method: CustomValidatorFn, **kwargs: object) -> ValidatorF
     return function_validator
 
 
-def validate_email() -> ValidatorFn:  # noqa: WPS231
+def validate_email() -> ValidatorFn[Any]:  # noqa: WPS231
     user_regex = re.compile(
         r"(^[-!#$%&'*+/=?^`{}|~\w]+(\.[-!#$%&'*+/=?^`{}|~\w]+)*$"  # noqa: P103
         + r'|^"([\001-\010\013\014\016-\037!#-\[\]-\177]'  # noqa: P103
@@ -347,7 +349,7 @@ def validate_email() -> ValidatorFn:  # noqa: WPS231
 
     domain_whitelist = ('localhost',)
 
-    def email_validator(field: Field, data: Data, ctx: Optional[ModelLike] = None):
+    def email_validator(field: Field[Any], data: Data, ctx: Any = None):
         if field.value is None:
             return
 
@@ -390,8 +392,8 @@ class QueryLike(Protocol):  # pragma: no cover
 
 def validate_model_unique(
     lookup_field: LookupField, queryset: QueryLike, pk_field: Optional[peewee.Field] = None, pk_value: Optional[object] = None,
-) -> ValidatorFn:
-    def unique_validator(field: Field, data: Data, ctx: Optional[ModelLike] = None):
+) -> ValidatorFn[Any]:
+    def unique_validator(field: Field[Any], data: Data, ctx: Any = None):
         # If we have a PK, ignore it because it represents the current record.
         query = queryset.where(lookup_field == field.value)
         if pk_field and pk_value:
@@ -422,20 +424,34 @@ DefaultFactory = Callable[[], object]
 Default = Union[object, DefaultFactory]
 
 
-class Field:
+Validators = Sequence[ValidatorFn[T]]
+
+
+def combine_validators(default_validators: Validators[T], additional_validators: Optional[Validators[T]]) -> Validators[T]:
+    return [*default_validators, *(additional_validators or [])]
+
+
+class Field(Generic[T]):
     __slots__ = (value_const, 'name', required_const, default_const, validators_const)
 
     name: Optional[str]
     default: Optional[Default]
     value: Optional[object]
 
-    def __init__(self, required: bool = False, default: Optional[Default] = None, validators: Optional[List[ValidatorFn]] = None):
+    def __init__(
+        self, required: bool = False, default: Optional[Default] = None, validators: Optional[Validators[T]] = None,
+    ):
+
+        default_validators: Validators[T]
+        if required:
+            default_validators = [validate_required()]
+        else:
+            default_validators = []
+
         self.default = default
         self.value = None
         self.name = None
-        self.validators = validators or []  # noqa: WPS204
-        if required:
-            self.validators.append(validate_required())
+        self.validators = combine_validators(default_validators, validators)
 
     def coerce(self, value: V) -> V:
         return value
@@ -452,7 +468,7 @@ class Field:
             return default
         return None
 
-    def validate(self, name: str, data: Data, ctx: Optional[ModelLike]):
+    def validate(self, name: str, data: Data, ctx: Optional[T]):
         self.value = self.get_value(name, data)
         self.name = name
         if self.value is not None:
@@ -461,7 +477,7 @@ class Field:
             method(self, data, ctx)
 
 
-class StringField(Field):
+class StringField(Field[T]):
     __slots__ = (value_const, required_const, default_const, validators_const)
 
     def __init__(
@@ -470,18 +486,22 @@ class StringField(Field):
         max_length: Optional[Numeric] = None,
         min_length: Optional[Numeric] = None,
         default: Optional[Default] = None,
-        validators: Optional[List[ValidatorFn]] = None,
+        validators: Optional[Validators[T]] = None,
     ):
-        validators = validators or []
+        default_validators: Validators[T]
+
         if max_length or min_length:
-            validators.append(validate_length(high=max_length, low=min_length))
-        super().__init__(required=required, default=default, validators=validators)
+            default_validators = [validate_length(high=max_length, low=min_length)]
+        else:
+            default_validators = []
+
+        super().__init__(required=required, default=default, validators=combine_validators(default_validators, validators))
 
     def coerce(self, value: Optional[object]) -> str:  # type: ignore
         return str(value)
 
 
-class FloatField(Field):
+class FloatField(Field[T]):
     __slots__ = (value_const, required_const, default_const, validators_const)
 
     def __init__(
@@ -490,12 +510,16 @@ class FloatField(Field):
         low: Optional[Numeric] = None,
         high: Optional[Numeric] = None,
         default: Optional[Default] = None,
-        validators: Optional[List[ValidatorFn]] = None,
+        validators: Optional[Validators[T]] = None,
     ):
-        validators = validators or []
+        default_validators: Validators[T]
+
         if low or high:
-            validators.append(validate_numeric_range(low=low, high=high))
-        super().__init__(required=required, default=default, validators=validators)
+            default_validators = [validate_numeric_range(low=low, high=high)]
+        else:
+            default_validators = []
+
+        super().__init__(required=required, default=default, validators=combine_validators(default_validators, validators))
 
     def coerce(self, value: Optional[object]) -> Optional[float]:  # type: ignore
         try:
@@ -504,7 +528,7 @@ class FloatField(Field):
             raise ValidationError('coerce_float')
 
 
-class IntegerField(Field):
+class IntegerField(Field[T]):
     __slots__ = (value_const, required_const, default_const, validators_const)
 
     def __init__(
@@ -513,12 +537,16 @@ class IntegerField(Field):
         low: Optional[Numeric] = None,
         high: Optional[Numeric] = None,
         default: Optional[Default] = None,
-        validators: Optional[List[ValidatorFn]] = None,
+        validators: Optional[Validators[T]] = None,
     ):
-        validators = validators or []
+        default_validators: Validators[T]
+
         if low or high:
-            validators.append(validate_numeric_range(low=low, high=high))
-        super().__init__(required=required, default=default, validators=validators)
+            default_validators = [validate_numeric_range(low=low, high=high)]
+        else:
+            default_validators = []
+
+        super().__init__(required=required, default=default, validators=combine_validators(default_validators, validators))
 
     def coerce(self, value: Optional[object]) -> Optional[int]:  # type: ignore
         try:
@@ -527,7 +555,7 @@ class IntegerField(Field):
             raise ValidationError('coerce_int')
 
 
-class DecimalField(Field):
+class DecimalField(Field[T]):
     __slots__ = (value_const, required_const, default_const, validators_const)
 
     def __init__(
@@ -536,12 +564,16 @@ class DecimalField(Field):
         low: Optional[Numeric] = None,
         high: Optional[Numeric] = None,
         default: Optional[Default] = None,
-        validators: Optional[List[ValidatorFn]] = None,
+        validators: Optional[Validators[T]] = None,
     ):
-        validators = validators or []
+        default_validators: Validators[T]
+
         if low or high:
-            validators.append(validate_numeric_range(low=low, high=high))
-        super().__init__(required=required, default=default, validators=validators)
+            default_validators = [validate_numeric_range(low=low, high=high)]
+        else:
+            default_validators = []
+
+        super().__init__(required=required, default=default, validators=combine_validators(default_validators, validators))
 
     def coerce(self, value: Optional[object]) -> Optional[Decimal]:  # type: ignore
         try:
@@ -550,7 +582,7 @@ class DecimalField(Field):
             raise ValidationError('coerce_decimal')
 
 
-class DateField(Field):
+class DateField(Field[T]):
     __slots__ = (value_const, required_const, default_const, validators_const)
 
     def __init__(
@@ -559,12 +591,16 @@ class DateField(Field):
         low: Optional[datetime.date] = None,
         high: Optional[datetime.date] = None,
         default: Optional[Default] = None,
-        validators: Optional[List[ValidatorFn]] = None,
+        validators: Optional[Validators[T]] = None,
     ):
-        validators = validators or []
+        default_validators: Validators[T]
+
         if low or high:
-            validators.append(validate_temporal_range(low=low, high=high))
-        super().__init__(required=required, default=default, validators=validators)
+            default_validators = [validate_temporal_range(low=low, high=high)]
+        else:
+            default_validators = []
+
+        super().__init__(required=required, default=default, validators=combine_validators(default_validators, validators))
 
     def coerce(self, value: Optional[object]) -> Optional[datetime.date]:  # type: ignore
         if not value or isinstance(value, datetime.date):
@@ -575,7 +611,7 @@ class DateField(Field):
             raise ValidationError('coerce_date')
 
 
-class TimeField(Field):
+class TimeField(Field[T]):
     __slots__ = (value_const, required_const, default_const, validators_const)
 
     def __init__(
@@ -584,12 +620,16 @@ class TimeField(Field):
         low: Optional[datetime.time] = None,
         high: Optional[datetime.time] = None,
         default: Optional[Default] = None,
-        validators: Optional[List[ValidatorFn]] = None,
+        validators: Optional[Validators[T]] = None,
     ):
-        validators = validators or []
+        default_validators: Validators[T]
+
         if low or high:
-            validators.append(validate_temporal_range(low=low, high=high))
-        super().__init__(required=required, default=default, validators=validators)
+            default_validators = [validate_temporal_range(low=low, high=high)]
+        else:
+            default_validators = []
+
+        super().__init__(required=required, default=default, validators=combine_validators(default_validators, validators))
 
     def coerce(self, value: Optional[object]) -> Optional[datetime.time]:  # type: ignore
         if not value or isinstance(value, datetime.time):
@@ -600,7 +640,7 @@ class TimeField(Field):
             raise ValidationError('coerce_time')
 
 
-class DateTimeField(Field):
+class DateTimeField(Field[T]):
     __slots__ = (value_const, required_const, default_const, validators_const)
 
     def __init__(
@@ -609,12 +649,16 @@ class DateTimeField(Field):
         low: Optional[datetime.datetime] = None,
         high: Optional[datetime.datetime] = None,
         default: Optional[Default] = None,
-        validators: Optional[List[ValidatorFn]] = None,
+        validators: Optional[Validators[T]] = None,
     ):
-        validators = validators or []
+        default_validators: Validators[T]
+
         if low or high:
-            validators.append(validate_temporal_range(low=low, high=high))
-        super().__init__(required=required, default=default, validators=validators)
+            default_validators = [validate_temporal_range(low=low, high=high)]
+        else:
+            default_validators = []
+
+        super().__init__(required=required, default=default, validators=combine_validators(default_validators, validators))
 
     def coerce(self, value: Optional[object]) -> Optional[datetime.datetime]:  # type: ignore
         if not value or isinstance(value, datetime.datetime):
@@ -625,7 +669,7 @@ class DateTimeField(Field):
             raise ValidationError('coerce_datetime')
 
 
-class BooleanField(Field):
+class BooleanField(Field[T]):
     __slots__ = (value_const, required_const, default_const, validators_const)
 
     false_values = ('0', '{}', '[]', 'none', 'false')  # noqa: P103
@@ -634,7 +678,7 @@ class BooleanField(Field):
         return str(value).lower() not in self.false_values
 
 
-class ModelChoiceField(Field):
+class ModelChoiceField(Field[M]):
     __slots__ = ('query', 'lookup_field', value_const, required_const, default_const, validators_const)
 
     def __init__(self, query: QueryLike, lookup_field: LookupField, required: bool = False, **kwargs: object):
@@ -645,7 +689,7 @@ class ModelChoiceField(Field):
     def coerce(self, value: object) -> Any:  # type: ignore
         return coerce_single_instance(self.lookup_field, value)
 
-    def validate(self, name: str, data: Data, ctx: Optional[ModelLike]):
+    def validate(self, name: str, data: Data, ctx: Optional[M] = None):
         super().validate(name, data, ctx)
         if self.value is not None:
             try:
@@ -654,7 +698,7 @@ class ModelChoiceField(Field):
                 raise ValidationError('related', field=self.lookup_field.name, values=self.value)
 
 
-class ManyModelChoiceField(Field):
+class ManyModelChoiceField(Field[M]):
     __slots__ = ('query', 'lookup_field', value_const, required_const, default_const, validators_const)
 
     def __init__(self, query: QueryLike, lookup_field: LookupField, required: bool = False, **kwargs: object):
@@ -671,7 +715,7 @@ class ManyModelChoiceField(Field):
             value = cast(Sequence[object], value)
         return [coerce_single_instance(self.lookup_field, v) for v in value]
 
-    def validate(self, name: str, data: Data, ctx: Optional[ModelLike]):
+    def validate(self, name: str, data: Data, ctx: Optional[M] = None):
         super().validate(name, data, ctx)
         if self.value is not None and isinstance(self.value, Sequence):
             value = cast(Sequence[object], self.value)
@@ -683,9 +727,9 @@ class ManyModelChoiceField(Field):
                 raise ValidationError('related', field=self.lookup_field.name, values=value)
 
 
-class ValidatorOptions:
+class ValidatorOptions(Generic[T]):
     messages: Dict[str, str]
-    fields: Dict[str, Field]
+    fields: Dict[str, Field[T]]
     only: Iterable[str]
     exclude: Iterable[str]
 
@@ -696,22 +740,27 @@ class ValidatorOptions:
         self.exclude = []
 
 
-class Validator:
+class BaseValidator(Generic[T]):
     """A validator class. Can have many fields attached to it to perform validation on data."""
 
     class Meta:
         pass
 
-    __slots__ = ('data', 'errors', '_meta')
+    __slots__ = ('data', 'errors', '_meta', 'ctx')
 
     data: Dict[str, object]
     errors: Dict[str, str]
+    ctx: Optional[T]
 
     def __init__(self):
         self.errors = {}
         self.data = {}
 
-        self._meta = ValidatorOptions(self)
+        # Sometimes a subclass has already set context
+        if not hasattr(self, 'ctx'):  # noqa: WPS421
+            self.ctx = None
+
+        self._meta = ValidatorOptions[T](self)
         self._meta.__dict__.update(self.Meta.__dict__)  # noqa: WPS609
 
         self.initialize_fields()
@@ -733,9 +782,9 @@ class Validator:
     def validate(  # noqa: WPS231
         self,
         data: Optional[Data] = None,
+        ctx: Optional[T] = None,
         only: Optional[Iterable[str]] = None,
         exclude: Optional[Iterable[str]] = None,
-        ctx: Optional[ModelLike] = None,
     ):
         only = only or []
         exclude = exclude or []
@@ -780,10 +829,14 @@ class Validator:
         return data
 
 
+class Validator(BaseValidator[None]):
+    ...
+
+
 class ModelMetaLike(Protocol):
     primary_key: peewee.Field
     fields: Dict[str, peewee.Field]
-    indexes: List[Tuple[Tuple[str, ...], bool]]  # noqa: WPS234
+    indexes: Sequence[Tuple[Tuple[str, ...], bool]]  # noqa: WPS234
 
 
 class ModelLike(QueryLike):  # pragma: no cover
@@ -803,34 +856,35 @@ class ModelLike(QueryLike):  # pragma: no cover
         ...
 
 
-class ModelValidator(Validator):
-    __slots__ = ('data', 'errors', '_meta', 'instance', 'pk_field', 'pk_value', 'meta')
+class ModelValidator(BaseValidator[M]):
+    __slots__ = ('data', 'errors', '_meta', 'pk_field', 'pk_value', 'meta')
 
     FIELD_MAP = {  # noqa: WPS115
-        'smallint': IntegerField,
-        'bigint': IntegerField,
-        'bool': BooleanField,
-        'date': DateField,
-        'datetime': DateTimeField,
-        'decimal': DecimalField,
-        'double': FloatField,
-        'float': FloatField,
-        'int': IntegerField,
-        'time': TimeField,
+        'smallint': IntegerField[M],
+        'bigint': IntegerField[M],
+        'bool': BooleanField[M],
+        'date': DateField[M],
+        'datetime': DateTimeField[M],
+        'decimal': DecimalField[M],
+        'double': FloatField[M],
+        'float': FloatField[M],
+        'int': IntegerField[M],
+        'time': TimeField[M],
     }
 
-    instance: ModelLike
+    meta: ModelMetaLike
+    pk_value: object
+    pk_field: peewee.Field
 
-    def __init__(self, instance: object):
-        if not isinstance(instance, peewee.Model):
-            message = 'First argument to {} must be an instance of peewee.Model.'  # noqa: P103
-            raise AttributeError(message.format(type(self).__name__))
-
-        self.instance = cast(ModelLike, instance)
-        self.meta = self.instance._meta  # type: ignore
+    def __init__(self, instance: M):
+        # We need to add the type var here
+        # Not sure if it's a bug: https://github.com/microsoft/pyright/issues/1577
+        self.ctx: M = instance
+        self.meta = cast(ModelLike, self.ctx)._meta  # type: ignore
         self.pk_field = self.meta.primary_key
-        self.pk_value = self.instance.get_id()
+        self.pk_value = self.ctx.get_id()
 
+        # Important that the init comes after setting the above attributes
         super().__init__()
 
     def initialize_fields(self):
@@ -842,19 +896,19 @@ class ModelValidator(Validator):
 
         # Many-to-many fields are not stored in the meta fields dict.
         # Pull them directly off the class.
-        for mtm_name in dir(type(self.instance)):  # noqa: WPS421
-            mtm_field = getattr(type(self.instance), mtm_name, None)
+        for mtm_name in dir(type(self.ctx)):  # noqa: WPS421
+            mtm_field = getattr(type(self.ctx), mtm_name, None)
             if isinstance(mtm_field, peewee.ManyToManyField):
                 self._meta.fields[mtm_name] = self.convert_field(mtm_name, mtm_field)
 
         super().initialize_fields()
 
-    def convert_field(self, name: str, field: peewee.Field):
+    def convert_field(self, name: str, field: peewee.Field) -> Field[M]:
         field_type = field.field_type.lower()
 
-        pwv_field = ModelValidator.FIELD_MAP.get(field_type, StringField)
+        pwv_field = ModelValidator.FIELD_MAP.get(field_type, StringField[M])
 
-        validators = []
+        validators: List[ValidatorFn[M]] = []
         required = not bool(getattr(field, 'null', True))
         choices = getattr(field, 'choices', ())
         default = getattr(field, default_const, None)
@@ -871,15 +925,15 @@ class ModelValidator(Validator):
             validators.append(validate_length(high=max_length))
 
         if unique:
-            validators.append(validate_model_unique(field, self.instance.select(), self.pk_field, self.pk_value))
+            validators.append(validate_model_unique(field, cast(ModelLike, self.ctx).select(), self.pk_field, self.pk_value))
 
         if isinstance(field, peewee.ForeignKeyField):
-            rel_field = cast(peewee.ForeignKeyField, field.rel_field)
-            return ModelChoiceField(cast(ModelLike, field.rel_model), rel_field, default=default, validators=validators)
+            rel_field = cast(peewee.Field, field.rel_field)
+            return ModelChoiceField[M](cast(ModelLike, field.rel_model), rel_field, default=default, validators=validators)
 
         if isinstance(field, peewee.ManyToManyField):
             meta = cast(ModelLike, field.rel_model)._meta  # type: ignore
-            return ManyModelChoiceField(
+            return ManyModelChoiceField[M](
                 cast(ModelLike, field.rel_model), meta.primary_key, default=default, validators=validators,
             )
 
@@ -894,13 +948,13 @@ class ModelValidator(Validator):
             if name in exclude or (only and name not in only):
                 continue
             try:
-                data.setdefault(name, getattr(self.instance, name, None))
+                data.setdefault(name, getattr(self.ctx, name, None))
             except (peewee.DoesNotExist):
-                instance_data = self.instance.__data__  # noqa: WPS609
+                instance_data = cast(ModelLike, self.ctx).__data__  # noqa: WPS609
                 data.setdefault(name, instance_data.get(name, None))
 
         # This will set self.data which we should use from now on.
-        super().validate(data=data, only=only, exclude=exclude, ctx=self.instance)
+        super().validate(data=data, only=only, exclude=exclude, ctx=self.ctx)
 
         if not self.errors:
             self.perform_index_validation(self.data)
@@ -909,7 +963,7 @@ class ModelValidator(Validator):
 
     def perform_index_validation(self, data: Data):  # noqa: WPS231
         # Build a list of dict containing query values for each unique index.
-        index_data = []
+        index_data: List[Dict[str, object]] = []
         for columns, unique in self.meta.indexes:
             if not unique:
                 continue
@@ -917,7 +971,7 @@ class ModelValidator(Validator):
 
         # Then query for each unique index to see if the value is unique.
         for index in index_data:
-            query = self.instance.filter(**index)
+            query = cast(ModelLike, self.ctx).filter(**index)
             # If we have a primary key, need to exclude the current record from the check.
             if self.pk_field and self.pk_value:
                 query = query.where(~(self.pk_field == self.pk_value))
@@ -927,9 +981,9 @@ class ModelValidator(Validator):
                     self.add_error(col, err)
 
     def save(self, force_insert: bool = False) -> int:
-        delayed = {}
+        delayed: Data = {}
         for field, value in self.data.items():
-            model_field = getattr(type(self.instance), field, None)
+            model_field = getattr(type(self.ctx), field, None)
 
             # If this is a many-to-many field, we cannot save it to the instance until the instance
             # is saved to the database. Collect these fields and delay the setting until after
@@ -939,11 +993,11 @@ class ModelValidator(Validator):
                     delayed[field] = value
                 continue
 
-            setattr(self.instance, field, value)
+            setattr(self.ctx, field, value)
 
-        rv = self.instance.save(force_insert=force_insert)
+        rv = cast(ModelLike, self.ctx).save(force_insert=force_insert)
 
         for delayed_field, delayed_value in delayed.items():
-            setattr(self.instance, delayed_field, delayed_value)
+            setattr(self.ctx, delayed_field, delayed_value)
 
         return rv  # noqa: R504

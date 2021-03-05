@@ -29,7 +29,7 @@ required_msg = DEFAULT_MESSAGES['required']
 
 def test_raw_field():
     class TestValidator(Validator):
-        field1 = Field()
+        field1 = Field[None]()
 
     validator = TestValidator()
     assert validator.validate({'field1': 'thing'})
@@ -38,14 +38,14 @@ def test_raw_field():
 
 def test_required():  # noqa: WPS218
     class TestValidator(Validator):
-        bool_field = BooleanField(required=True)
-        decimal_field = DecimalField(required=True)
-        float_field = FloatField(required=True, low=10.0, high=50.0)
-        int_field = IntegerField(required=True)
-        str_field = StringField(required=True)
-        date_field = DateField(required=True, low=date.today() - timedelta(1), high=date.today() + timedelta(1))
-        time_field = TimeField(required=True, low=time(), high=time())
-        datetime_field = DateTimeField(required=True, low=datetime.now() - timedelta(1), high=datetime.now() + timedelta(1))
+        bool_field = BooleanField[None](required=True)
+        decimal_field = DecimalField[None](required=True)
+        float_field = FloatField[None](required=True, low=10.0, high=50.0)
+        int_field = IntegerField[None](required=True)
+        str_field = StringField[None](required=True)
+        date_field = DateField[None](required=True, low=date.today() - timedelta(1), high=date.today() + timedelta(1))
+        time_field = TimeField[None](required=True, low=time(), high=time())
+        datetime_field = DateTimeField[None](required=True, low=datetime.now() - timedelta(1), high=datetime.now() + timedelta(1))
 
     validator = TestValidator()
     assert not validator.validate()
@@ -61,7 +61,7 @@ def test_required():  # noqa: WPS218
 
 def test_integerfield():
     class TestValidator(Validator):
-        int_field = IntegerField(required=True)
+        int_field = IntegerField[None](required=True)
 
     data = {'int_field': 0}
     validator = TestValidator()
@@ -70,10 +70,10 @@ def test_integerfield():
 
 def test_coerce_fails():
     class TestValidator(Validator):
-        float_field = FloatField()
-        int_field = IntegerField(required=True)
-        decimal_field = DecimalField(required=True)
-        boolean_field = BooleanField()
+        float_field = FloatField[None]()
+        int_field = IntegerField[None](required=True)
+        decimal_field = DecimalField[None](required=True)
+        boolean_field = BooleanField[None]()
 
     validator = TestValidator()
     data = {'int_field': 'a', 'float_field': 'a', 'decimal_field': 'a', 'boolean_field': 'false'}
@@ -85,9 +85,9 @@ def test_coerce_fails():
 
 def test_decimal():
     class TestValidator(Validator):
-        low_field = DecimalField(low=-42.0)
-        high_field = DecimalField(high=42.0)
-        low_high_field = DecimalField(low=-42.0, high=42.0)
+        low_field = DecimalField[None](low=-42.0)
+        high_field = DecimalField[None](high=42.0)
+        low_high_field = DecimalField[None](low=-42.0, high=42.0)
 
     validator = TestValidator()
     data = {'low_field': '-99.99', 'high_field': '99.99', 'low_high_field': '99.99'}
@@ -99,7 +99,7 @@ def test_decimal():
 
 def test_required_empty():
     class TestValidator(Validator):
-        field1 = StringField(required=False, validators=[validate_not_empty()])
+        field1 = StringField[None](required=False, validators=[validate_not_empty()])
 
     validator = TestValidator()
 
@@ -111,9 +111,9 @@ def test_required_empty():
 
 def test_dates_empty():
     class TestValidator(Validator):
-        date_field = DateField()
-        time_field = TimeField()
-        datetime_field = DateTimeField()
+        date_field = DateField[None]()
+        time_field = TimeField[None]()
+        datetime_field = DateTimeField[None]()
 
     data = {
         'date_field': '',
@@ -131,9 +131,9 @@ def test_dates_empty():
 
 def test_dates_coersions():
     class TestValidator(Validator):
-        date_field = DateField(required=True)
-        time_field = TimeField(required=True)
-        datetime_field = DateTimeField(required=True)
+        date_field = DateField[None](required=True)
+        time_field = TimeField[None](required=True)
+        datetime_field = DateTimeField[None](required=True)
 
     data = {
         'date_field': 'jan 1, 2015',
@@ -151,9 +151,9 @@ def test_dates_coersions():
 
 def test_dates_native():
     class TestValidator(Validator):
-        date_field = DateField(required=True)
-        time_field = TimeField(required=True)
-        datetime_field = DateTimeField(required=True)
+        date_field = DateField[None](required=True)
+        time_field = TimeField[None](required=True)
+        datetime_field = DateTimeField[None](required=True)
 
     data = {
         'date_field': date(2015, 1, 1),
@@ -171,9 +171,9 @@ def test_dates_native():
 
 def test_date_coerce_fail():
     class TestValidator(Validator):
-        date_field = DateField(required=True)
-        time_field = TimeField(required=True)
-        datetime_field = DateTimeField(required=True)
+        date_field = DateField[None](required=True)
+        time_field = TimeField[None](required=True)
+        datetime_field = DateTimeField[None](required=True)
 
     data = {
         'date_field': 'failure',
@@ -191,7 +191,7 @@ def test_date_coerce_fail():
 
 def test_default():
     class TestValidator(Validator):
-        str_field = StringField(required=True, default='timster')
+        str_field = StringField[None](required=True, default='timster')
 
     validator = TestValidator()
     assert validator.validate()
@@ -203,7 +203,7 @@ def test_callable_default():
         return 'timster'
 
     class TestValidator(Validator):
-        str_field = StringField(required=True, default=getname)
+        str_field = StringField[None](required=True, default=getname)
 
     validator = TestValidator()
     assert validator.validate()
@@ -212,9 +212,9 @@ def test_callable_default():
 
 def test_lengths():
     class TestValidator(Validator):
-        max_field = StringField(max_length=5)
-        min_field = StringField(min_length=5)
-        len_field = StringField(validators=[validate_length(equal=10)])
+        max_field = StringField[None](max_length=5)
+        min_field = StringField[None](min_length=5)
+        len_field = StringField[None](validators=[validate_length(equal=10)])
 
     validator = TestValidator()
     assert not validator.validate({'min_field': 'shrt', 'max_field': 'toolong', 'len_field': '3'})
@@ -225,8 +225,8 @@ def test_lengths():
 
 def test_range():
     class TestValidator(Validator):
-        range1 = IntegerField(low=1, high=5)
-        range2 = IntegerField(low=1, high=5)
+        range1 = IntegerField[None](low=1, high=5)
+        range2 = IntegerField[None](low=1, high=5)
 
     validator = TestValidator()
     assert not validator.validate({'range1': '44', 'range2': '3'})
@@ -236,7 +236,7 @@ def test_range():
 
 def test_coerce_error():
     class TestValidator(Validator):
-        date_field = DateField()
+        date_field = DateField[None]()
 
     validator = TestValidator()
     assert not validator.validate({'date_field': 'not a real date'})
@@ -245,7 +245,7 @@ def test_coerce_error():
 
 def test_choices():
     class TestValidator(Validator):
-        first_name = StringField(validators=[validate_one_of(('tim', 'bob'))])
+        first_name = StringField[None](validators=[validate_one_of(('tim', 'bob'))])
 
     validator = TestValidator()
     assert validator.validate()
@@ -260,7 +260,7 @@ def test_choices():
 
 def test_choices_integers():
     class TestValidator(Validator):
-        int_field = IntegerField(validators=[validate_one_of((1, 2, 3))])
+        int_field = IntegerField[None](validators=[validate_one_of((1, 2, 3))])
 
     validator = TestValidator()
     assert not validator.validate({'int_field': 4})
@@ -268,7 +268,7 @@ def test_choices_integers():
 
 def test_exclude():
     class TestValidator(Validator):
-        first_name = StringField(validators=[validate_none_of(('tim', 'bob'))])
+        first_name = StringField[None](validators=[validate_none_of(('tim', 'bob'))])
 
     validator = TestValidator()
     assert not validator.validate({'first_name': 'tim'})
@@ -283,7 +283,7 @@ def test_callable_choices():
         return ('tim', 'bob')
 
     class TestValidator(Validator):
-        first_name = StringField(validators=[validate_one_of(getchoices)])
+        first_name = StringField[None](validators=[validate_one_of(getchoices)])
 
     validator = TestValidator()
     assert not validator.validate({'first_name': 'asdf'})
@@ -298,7 +298,7 @@ def test_callable_exclude():
         return ('tim', 'bob')
 
     class TestValidator(Validator):
-        first_name = StringField(validators=[validate_none_of(getchoices)])
+        first_name = StringField[None](validators=[validate_none_of(getchoices)])
 
     validator = TestValidator()
     assert not validator.validate({'first_name': 'tim'})
@@ -310,7 +310,7 @@ def test_callable_exclude():
 
 def test_equal():
     class TestValidator(Validator):
-        first_name = StringField(validators=[validate_equal('tim')])
+        first_name = StringField[None](validators=[validate_equal('tim')])
 
     validator = TestValidator()
     assert validator.validate({'first_name': 'tim'})
@@ -322,7 +322,7 @@ def test_equal():
 
 def test_regexp():
     class TestValidator(Validator):
-        first_name = StringField(validators=[validate_regexp('^[i-t]+$')])
+        first_name = StringField[None](validators=[validate_regexp('^[i-t]+$')])
 
     validator = TestValidator()
     assert validator.validate({'first_name': 'tim'})
@@ -334,7 +334,7 @@ def test_regexp():
 
 def test_email():
     class TestValidator(Validator):
-        email = StringField(validators=[validate_email()])
+        email = StringField[None](validators=[validate_email()])
 
     validator = TestValidator()
     assert not validator.validate({'email': 'bad-domain@asdfasdf'})
@@ -346,7 +346,7 @@ def test_function():
         return value == 'tim'
 
     class TestValidator(Validator):
-        first_name = StringField(validators=[validate_function(alwaystim)])
+        first_name = StringField[None](validators=[validate_function(alwaystim)])
 
         class Meta(Validator.Meta):
             messages = {'function': 'your name must be tim'}
@@ -361,8 +361,8 @@ def test_function():
 
 def test_only_exclude():
     class TestValidator(Validator):
-        field1 = StringField(required=True)
-        field2 = StringField(required=True)
+        field1 = StringField[None](required=True)
+        field2 = StringField[None](required=True)
 
     validator = TestValidator()
     assert validator.validate({'field1': 'shrt'}, only=['field1'])
@@ -372,7 +372,7 @@ def test_only_exclude():
 
 def test_clean_field():
     class TestValidator(Validator):
-        field1 = StringField(required=True)
+        field1 = StringField[None](required=True)
 
         def clean_field1(self, value: object):
             return f'{value}-awesome'
@@ -384,7 +384,7 @@ def test_clean_field():
 
 def test_clean_field_error():
     class TestValidator(Validator):
-        field1 = StringField(required=True)
+        field1 = StringField[None](required=True)
 
         def clean_field1(self, value: object):
             raise ValidationError('required')
@@ -397,7 +397,7 @@ def test_clean_field_error():
 
 def test_clean():
     class TestValidator(Validator):
-        field1 = StringField(required=True)
+        field1 = StringField[None](required=True)
 
         def clean(self, data: Dict[str, object]):
             v = data['field1']
@@ -412,7 +412,7 @@ def test_clean():
 
 def test_clean_error():
     class TestValidator(Validator):
-        field1 = StringField(required=True)
+        field1 = StringField[None](required=True)
 
         def clean(self, data: Dict[str, object]) -> Dict[str, object]:
             raise ValidationError('required')
@@ -425,9 +425,9 @@ def test_clean_error():
 
 def test_custom_messages():
     class TestValidator(Validator):
-        field1 = StringField(required=True)
-        field2 = StringField(required=True)
-        field3 = IntegerField(required=True)
+        field1 = StringField[None](required=True)
+        field2 = StringField[None](required=True)
+        field3 = IntegerField[None](required=True)
 
         class Meta(Validator.Meta):
             messages = {
@@ -445,12 +445,12 @@ def test_custom_messages():
 
 def test_subclass():
     class ParentValidator(Validator):
-        field1 = StringField(required=True)
-        field2 = StringField(required=False)
+        field1 = StringField[None](required=True)
+        field2 = StringField[None](required=False)
 
     class TestValidator(ParentValidator):
-        field2 = StringField(required=True)
-        field3 = StringField(required=True)
+        field2 = StringField[None](required=True)
+        field3 = StringField[None](required=True)
 
     validator = TestValidator()
     assert not validator.validate({})

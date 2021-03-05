@@ -18,7 +18,7 @@ from outcome.peewee_validates.peewee_validates import (  # noqa: WPS235
     validate_temporal_range,
 )
 
-field = StringField()
+field = StringField[None]()
 
 
 def test_validate_required():
