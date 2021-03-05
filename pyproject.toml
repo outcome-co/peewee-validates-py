@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "outcome-peewee-validates"
-version = "1.0.0"
+version = "2.0.0"
 description = "Fork of Peewee-validates"
 authors = ["Outcome Engineering <engineering@outcome.co>"]
 packages = [
@@ -17,7 +17,7 @@ peewee = "^3.13.3"
 python-dateutil ="^2.5.0"
 
 [tool.poetry.dev-dependencies]
-outcome-devkit = "^6.1.0"
+outcome-devkit = "^6.3.0"
 
 
 [tool.coverage.run]
@@ -68,7 +68,7 @@ ensure_newline_before_comments = true
 
 [tool.commitizen]
 name = "cz_conventional_commits"
-version = "1.0.0"
+version = "2.0.0"
 tag_format = "v$version"
 bump_message = "chore(version): $current_version → $new_version"
 version_files = ["README.md:version-badge", "pyproject.toml:version"]
