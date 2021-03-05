@@ -1,21 +1,11 @@
 from test.models import BasicFields, ComplexPerson, Course, Organization, Person, Student
 from typing import Dict, cast
 
-import pytest
-from outcome.peewee_validates.peewee_validates import (
-    DEFAULT_MESSAGES,
-    ManyModelChoiceField,
-    ModelValidator,
-    QueryLike,
-    ValidationError,
-)
+from outcome.peewee_validates.peewee_validates import DEFAULT_MESSAGES
+from outcome.peewee_validates.peewee_validates import M as ModelType  # noqa: N811
+from outcome.peewee_validates.peewee_validates import ManyModelChoiceField, ModelValidator, QueryLike, ValidationError
 
 student_tim = Student(name='tim')
-
-
-def test_not_instance():
-    with pytest.raises(AttributeError):
-        ModelValidator(Person)
 
 
 def test_instance():
@@ -32,7 +22,7 @@ def test_required():
 
 
 def test_clean():
-    class TestValidator(ModelValidator):
+    class TestValidator(ModelValidator[ModelType]):
         def clean(self, data: Dict[str, object]):
             super().clean(data)
             v = data['name']
@@ -46,7 +36,7 @@ def test_clean():
 
 
 def test_clean_error():
-    class TestValidator(ModelValidator):
+    class TestValidator(ModelValidator[ModelType]):
         def clean(self, data: Dict[str, object]) -> Dict[str, object]:
             raise ValidationError('required')
 
@@ -256,8 +246,8 @@ def test_m2m_save_blank():
 
 
 def test_overrides():
-    class CustomValidator(ModelValidator):
-        students = ManyModelChoiceField(cast(QueryLike, Student.select()), Student.name)
+    class CustomValidator(ModelValidator[ModelType]):
+        students = ManyModelChoiceField[ModelType](cast(QueryLike, Student.select()), Student.name)
 
     Student.create(name='tim')
     Student.create(name='bob')
