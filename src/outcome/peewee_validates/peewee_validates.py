@@ -322,7 +322,7 @@ CustomValidatorFn = Union[
 
 
 def validate_function(method: CustomValidatorFn, **kwargs: object) -> ValidatorFn[Any]:
-    def function_validator(field: Field[Any], data: Data, ctx: Optional[ModelLike] = None):
+    def function_validator(field: Field[Any], data: Data, ctx: Any = None):
         if field.value is None:
             return
         if not method(field.value, **kwargs):
