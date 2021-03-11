@@ -1,9 +1,11 @@
 from test.models import BasicFields, ComplexPerson, Course, Organization, Person, Student
 from typing import Dict, cast
 
+import peewee
 from outcome.peewee_validates.peewee_validates import DEFAULT_MESSAGES
 from outcome.peewee_validates.peewee_validates import M as ModelType  # noqa: N811
 from outcome.peewee_validates.peewee_validates import ManyModelChoiceField, ModelValidator, QueryLike, ValidationError
+from playhouse.postgres_ext import ArrayField, BinaryJSONField, HStoreField
 
 student_tim = Student(name='tim')
 
@@ -89,19 +91,19 @@ def test_related_optional_missing():
 
 
 def test_related_required_int():
-    org = cast(Organization, Organization.create(name='new1'))
+    org = Organization.create(name='new1')
     validator = ModelValidator(ComplexPerson(name='tim', gender='M'))
     assert validator.validate({'organization': org.id})
 
 
 def test_related_required_instance():
-    org = cast(Organization, Organization.create(name='new1'))
+    org = Organization.create(name='new1')
     validator = ModelValidator(ComplexPerson(name='tim', gender='M'))
     assert validator.validate({'organization': org})
 
 
 def test_related_required_dict():
-    org = cast(Organization, Organization.create(name='new1'))
+    org = Organization.create(name='new1')
     validator = ModelValidator(ComplexPerson(name='tim', gender='M'))
     assert validator.validate({'organization': {'id': org.id}})
 
@@ -178,8 +180,8 @@ def test_m2m_missing():
 def test_m2m_ints():
     validator = ModelValidator(student_tim)
 
-    c1 = cast(Course, Course.create(name='course1'))
-    c2 = cast(Course, Course.create(name='course2'))
+    c1 = Course.create(name='course1')
+    c2 = Course.create(name='course2')
 
     assert validator.validate({'courses': [c1.id, c2.id]})
 
@@ -202,8 +204,8 @@ def test_m2m_instances():
 def test_m2m_dicts():
     validator = ModelValidator(student_tim)
 
-    c1 = cast(Course, Course.create(name='course1'))
-    c2 = cast(Course, Course.create(name='course2'))
+    c1 = Course.create(name='course1')
+    c2 = Course.create(name='course2')
 
     assert validator.validate({'courses': [{'id': c1.id}, {'id': c2.id}]})
 
@@ -222,8 +224,8 @@ def test_m2m_save():
     obj = student_tim
     validator = ModelValidator(obj)
 
-    c1 = cast(Course, Course.create(name='course1'))
-    c2 = cast(Course, Course.create(name='course2'))
+    c1 = Course.create(name='course1')
+    c2 = Course.create(name='course2')
 
     assert validator.validate({'courses': [c1, c2]})
 
@@ -252,7 +254,7 @@ def test_overrides():
     Student.create(name='tim')
     Student.create(name='bob')
 
-    obj = cast(Course, Course.create(name='course1'))
+    obj = Course.create(name='course1')
 
     validator = CustomValidator(obj)
 
@@ -263,3 +265,48 @@ def test_overrides():
 
     assert obj.id
     assert len(obj.students) == 2
+
+
+class ArrayModel(peewee.Model):
+    items = ArrayField(peewee.IntegerField)
+
+
+def test_array_type():
+    m = ArrayModel(items=[1, 2])
+    validator = ModelValidator(m)
+    validator.validate()
+    assert not validator.errors
+
+
+def test_invalid_array():
+    m = ArrayModel(items=True)
+    validator = ModelValidator(m)
+    assert not validator.validate()
+
+
+class JSONModel(peewee.Model):
+    doc = BinaryJSONField()
+
+
+def test_json_type():
+    m = JSONModel(doc={'items': [1, 2]})
+    validator = ModelValidator(m)
+    validator.validate()
+    assert not validator.errors
+
+
+class MappingModel(peewee.Model):
+    mapping = HStoreField()
+
+
+def test_valid_mapping_type():
+    m = MappingModel(mapping={'items': 1})
+    validator = ModelValidator(m)
+    validator.validate()
+    assert not validator.errors
+
+
+def test_invalid_mapping_type():
+    m = MappingModel(mapping=True)
+    validator = ModelValidator(m)
+    assert not validator.validate()
