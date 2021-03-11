@@ -18,6 +18,7 @@ python-dateutil ="^2.5.0"
 
 [tool.poetry.dev-dependencies]
 outcome-devkit = "^6.3.0"
+psycopg2 = "^2.8.6"
 
 
 [tool.coverage.run]

@@ -4,7 +4,6 @@ from __future__ import annotations
 import datetime
 import re
 import types
-from collections.abc import Iterable
 from decimal import Decimal, InvalidOperation
 from inspect import isgenerator, isgeneratorfunction
 from typing import (
@@ -13,6 +12,7 @@ from typing import (
     Collection,
     Dict,
     Generic,
+    Iterable,
     List,
     Mapping,
     Optional,
@@ -29,6 +29,7 @@ from typing import (
 
 import peewee
 from dateutil.parser import parse as dateutil_parse
+from playhouse.postgres_ext import ArrayField
 
 __version__ = '1.0.10'
 
@@ -82,6 +83,8 @@ DEFAULT_MESSAGES = types.MappingProxyType(
         'coerce_datetime': 'Must be a valid datetime.',
         'coerce_float': 'Must be a valid float.',
         'coerce_int': 'Must be a valid integer.',
+        'coerce_iterable': 'Must be an iterable.',
+        'coerce_mapping': 'Must be a mapping.',
         'related': 'Unable to find object with {field} = {values}.',
         'list': 'Must be a list of values',
         'unique': 'Must be a unique value.',
@@ -678,6 +681,24 @@ class BooleanField(Field[T]):
         return str(value).lower() not in self.false_values
 
 
+class IterableField(Field[T]):
+    __slots__ = (value_const, required_const, default_const, validators_const)
+
+    def coerce(self, value: Optional[object]) -> Optional[Iterable[Any]]:  # type: ignore
+        if not value or isinstance(value, Iterable):
+            return cast(Iterable[Any], value)
+        raise ValidationError('coerce_iterable')
+
+
+class MappingField(Field[T]):
+    __slots__ = (value_const, required_const, default_const, validators_const)
+
+    def coerce(self, value: Optional[object]) -> Optional[Mapping[str, Any]]:  # type: ignore
+        if not value or isinstance(value, Mapping):
+            return cast(Mapping[str, Any], value)
+        raise ValidationError('coerce_mapping')
+
+
 class ModelChoiceField(Field[M]):
     __slots__ = ('query', 'lookup_field', value_const, required_const, default_const, validators_const)
 
@@ -870,6 +891,9 @@ class ModelValidator(BaseValidator[M]):
         'float': FloatField[M],
         'int': IntegerField[M],
         'time': TimeField[M],
+        'jsonb': Field[M],
+        'json': Field[M],
+        'hstore': MappingField[M],
     }
 
     meta: ModelMetaLike
@@ -904,9 +928,13 @@ class ModelValidator(BaseValidator[M]):
         super().initialize_fields()
 
     def convert_field(self, name: str, field: peewee.Field) -> Field[M]:
-        field_type = field.field_type.lower()
 
-        pwv_field = ModelValidator.FIELD_MAP.get(field_type, StringField[M])
+        # Special case
+        if isinstance(field, ArrayField):
+            pwv_field = IterableField[M]
+        else:
+            field_type = field.field_type.lower()
+            pwv_field = ModelValidator.FIELD_MAP.get(field_type, StringField[M])
 
         validators: List[ValidatorFn[M]] = []
         required = not bool(getattr(field, 'null', True))
