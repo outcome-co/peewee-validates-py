@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "outcome-peewee-validates"
-version = "2.1.0"
+version = "2.1.1"
 description = "Fork of Peewee-validates"
 authors = ["Outcome Engineering <engineering@outcome.co>"]
 packages = [
@@ -69,7 +69,7 @@ ensure_newline_before_comments = true
 
 [tool.commitizen]
 name = "cz_conventional_commits"
-version = "2.1.0"
+version = "2.1.1"
 tag_format = "v$version"
 bump_message = "chore(version): $current_version → $new_version"
 version_files = ["README.md:version-badge", "pyproject.toml:version"]
