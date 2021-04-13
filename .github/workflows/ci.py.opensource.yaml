@@ -69,7 +69,7 @@ jobs:
             node-version: '14.x'
 
         - name: Set up python ${{ matrix.python }}
-          uses: actions/setup-python@v2.2.1
+          uses: actions/setup-python@v2.2.2
           with:
             python-version: ${{ matrix.python }}
 
@@ -137,7 +137,7 @@ jobs:
 
         - name: Set up python 3.8.6
           if: steps.bump_version.outputs.updated == 'true'
-          uses: actions/setup-python@v2.2.1
+          uses: actions/setup-python@v2.2.2
           with:
             python-version: "3.8.6"
 
