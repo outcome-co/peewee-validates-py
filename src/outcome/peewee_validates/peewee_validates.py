@@ -94,11 +94,12 @@ DEFAULT_MESSAGES = types.MappingProxyType(
 
 
 T = TypeVar('T')
+F = TypeVar('F', contravariant=True)
 M = TypeVar('M', bound=peewee.Model)
 
 
-class ValidatorFn(Protocol[T]):  # pragma: no cover
-    def __call__(self, field: Field[T], data: Data, ctx: Optional[T] = ...) -> None:
+class ValidatorFn(Protocol[F]):  # pragma: no cover
+    def __call__(self, field: Field[F], data: Data, ctx: Optional[F] = ...) -> None:
         ...
 
 
