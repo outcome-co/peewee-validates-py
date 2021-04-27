@@ -17,7 +17,7 @@ peewee = "^3.13.3"
 python-dateutil ="^2.5.0"
 
 [tool.poetry.dev-dependencies]
-outcome-devkit = "^6.6.4"
+outcome-devkit = "^6.6.6"
 psycopg2 = "^2.8.6"
 
 
