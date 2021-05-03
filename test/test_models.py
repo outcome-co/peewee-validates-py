@@ -2,10 +2,11 @@ from test.models import BasicFields, ComplexPerson, Course, Organization, Person
 from typing import Dict, cast
 
 import peewee
+from playhouse.postgres_ext import ArrayField, BinaryJSONField, HStoreField
+
 from outcome.peewee_validates.peewee_validates import DEFAULT_MESSAGES
 from outcome.peewee_validates.peewee_validates import M as ModelType  # noqa: N811
 from outcome.peewee_validates.peewee_validates import ManyModelChoiceField, ModelValidator, QueryLike, ValidationError
-from playhouse.postgres_ext import ArrayField, BinaryJSONField, HStoreField
 
 student_tim = Student(name='tim')
 

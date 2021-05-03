@@ -1,6 +1,7 @@
 import datetime
 
 import pytest
+
 from outcome.peewee_validates.peewee_validates import (  # noqa: WPS235
     StringField,
     ValidationError,
@@ -134,7 +135,8 @@ def test_validate_numeric_range():
 
 def test_validate_temporal_range():
     validator = validate_temporal_range(
-        low=datetime.datetime.today() - datetime.timedelta(1), high=datetime.datetime.today() + datetime.timedelta(2),
+        low=datetime.datetime.today() - datetime.timedelta(1),
+        high=datetime.datetime.today() + datetime.timedelta(2),
     )
 
     for value in (datetime.datetime.today() - datetime.timedelta(10), datetime.datetime.today() + datetime.timedelta(10)):
